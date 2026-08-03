@@ -100,7 +100,7 @@ Para robustecer la automatización de procesos, garantizar la seguridad en el ac
 
 | Desarrollador | Rol | GitHub |
 | :--- | :--- | :--- |
-| **Jose Francisco Flores Amador** | Líder de Proyecto / Fullstack / Documentación | [@JFFA25](https://github.com/JFFA25) |
+| **Jose Francisco Flores Amador** | Líder de Proyecto / Fullstack / Documentacion | [@JFFA25](https://github.com/JFFA25) |
 | **Edgar Cabrera Velázquez** | Backend / Lógica del sistema | [@Edgar-Cbr](https://github.com/Edgar-Cbr) |
 | **Edwin Hernández Campos** | Base de datos / Estructura | [@Edwinhdzcm](https://github.com/Edwinhdzcm) |
 | **Giovany Raul Pazos Cruz** | Frontend / Interfaz | [@giova0412](https://github.com/giova0412) |
