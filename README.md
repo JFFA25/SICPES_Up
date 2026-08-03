@@ -96,11 +96,49 @@ Para robustecer la automatización de procesos, garantizar la seguridad en el ac
 ### Cronograma (Gantt)
 ![Gantt](/frontend/src/assets/images/Diagrama_Gantt_SICPES.jpeg)
 
+## Despliegue e Infraestructura
+
+SICPES está contenerizado con **Docker** y desplegado en la nube, cumpliendo con los siguientes componentes de infraestructura:
+
+| Componente | Tecnología usada |
+| :--- | :--- |
+| **Contenedor** | Docker (imágenes independientes para backend, API y frontend) ![Docker](https://img.shields.io/badge/docker-%232496ED.svg?style=for-the-badge&logo=docker&logoColor=white) |
+| **Servidor de aplicaciones** | Render Web Services (backend y API) ![Render](https://img.shields.io/badge/Render-%23000000.svg?style=for-the-badge&logo=render&logoColor=white) |
+| **Servidor de base de datos** | TiDB Serverless (compatible con protocolo MySQL, conexión cifrada vía SSL/TLS) |
+| **Balanceo de cargas** | Gestionado automáticamente por la infraestructura de Render |
+| **Configuración de dominio** | Subdominios provistos por Render (`.onrender.com`) |
+| **Certificados de seguridad** | HTTPS/TLS automático, gestionado por Render |
+
+### Arquitectura de despliegue
+
+![Nube](/images/arquitectura_despliegue_nube_v2.png)
+
+### Servicios desplegados
+
+| Servicio | URL | Descripción |
+| :--- | :--- | :--- |
+| **Frontend** | [sicpes-frontend.onrender.com](https://sicpes-frontend.onrender.com) | Interfaz de usuario (React + TypeScript) |
+| **Backend** | [sicpes-backend.onrender.com](https://sicpes-backend.onrender.com) | API principal (Node.js/Express), autenticación y lógica de negocio |
+| **API** | [sicpes-api.onrender.com/docs](https://sicpes-api.onrender.com/docs) | API complementaria (FastAPI/Python), documentación interactiva Swagger |
+
+### Correr el proyecto localmente con Docker
+
+Con Docker Desktop instalado, y un archivo `.env` configurado en `backend/` y `API/` (ver `.env` de ejemplo en cada carpeta):
+
+```bash
+docker compose up --build
+```
+
+Esto levanta los 3 servicios en:
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+- API: `http://localhost:8000/docs`
+
 ## Nuestro Equipo
 
 | Desarrollador | Rol | GitHub |
 | :--- | :--- | :--- |
-| **Jose Francisco Flores Amador** | Líder de Proyecto / Fullstack / Documentacion | [@JFFA25](https://github.com/JFFA25) |
+| **Jose Francisco Flores Amador** | Líder de Proyecto / Fullstack / Documentación | [@JFFA25](https://github.com/JFFA25) |
 | **Edgar Cabrera Velázquez** | Backend / Lógica del sistema | [@Edgar-Cbr](https://github.com/Edgar-Cbr) |
 | **Edwin Hernández Campos** | Base de datos / Estructura | [@Edwinhdzcm](https://github.com/Edwinhdzcm) |
 | **Giovany Raul Pazos Cruz** | Frontend / Interfaz | [@giova0412](https://github.com/giova0412) |
