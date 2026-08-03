@@ -14,7 +14,10 @@ DB_NAME = os.getenv("DB_NAME", "sicpes")
 # Cadena de conexión adaptada a SQLAlchemy con PyMySQL
 SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+DB_SSL = os.getenv("DB_SSL", "false") == "true"
+connect_args = {"ssl": {"ssl_verify_cert": True, "ssl_verify_identity": True}} if DB_SSL else {}
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
