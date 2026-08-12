@@ -61,6 +61,9 @@ app.use("/api/payment", paymentRoutes);
 const roomRoutes = require("./src/routes/room.routes");
 app.use("/api/rooms", roomRoutes);
 
+const mobileRoutes = require("./src/routes/mobile.routes");
+app.use("/api/mobile", mobileRoutes);
+
 const adminRoutes = require("./src/routes/admin.routes");
 app.use("/api/admin", adminRoutes);
 
