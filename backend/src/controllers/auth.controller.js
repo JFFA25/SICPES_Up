@@ -110,13 +110,6 @@ const registerUser = async (req, res) => {
 
     createUser({ nombre, email: normalizedEmail, password: hashedPassword, token, telefono: phoneValue }, async (err) => {
       if (err) {
-        console.error("Error al registrar usuario:", err.code || err.message);
-
-        // El correo ya existe (UNIQUE KEY en tbd_usuarios.email) -> error del cliente, no del servidor
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(409).json({ error: "Ese correo ya está registrado" });
-        }
-
         return res.status(500).json({ error: "Error al registrar" });
       }
 
@@ -145,10 +138,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// Mismo dominio que usa mailer.js para los links de los correos; debe
-// coincidir con FRONTEND_URL configurado en Render (o localhost en dev).
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://localhost:5173";
-
 const confirmUser = (req, res) => {
   const { token } = req.params;
 
@@ -161,14 +150,14 @@ const confirmUser = (req, res) => {
   db.query(sql, [token], (err, result) => {
     if (err) {
       console.error(err);
-      return res.redirect(`${FRONTEND_URL}/error`);
+      return res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/error`);
     }
 
     if (result.affectedRows === 0) {
-      return res.redirect(`${FRONTEND_URL}/error`);
+      return res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/error`);
     }
 
-    res.redirect(`${FRONTEND_URL}/confirmado`);
+    res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/confirmado`);
   });
 };
 
