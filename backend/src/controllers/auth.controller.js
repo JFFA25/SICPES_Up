@@ -145,6 +145,10 @@ const registerUser = async (req, res) => {
   }
 };
 
+// Mismo dominio que usa mailer.js para los links de los correos; debe
+// coincidir con FRONTEND_URL configurado en Render (o localhost en dev).
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://localhost:5173";
+
 const confirmUser = (req, res) => {
   const { token } = req.params;
 
@@ -157,14 +161,14 @@ const confirmUser = (req, res) => {
   db.query(sql, [token], (err, result) => {
     if (err) {
       console.error(err);
-      return res.redirect("https://localhost:5173/error");
+      return res.redirect(`${FRONTEND_URL}/error`);
     }
 
     if (result.affectedRows === 0) {
-      return res.redirect("https://localhost:5173/error");
+      return res.redirect(`${FRONTEND_URL}/error`);
     }
 
-    res.redirect("https://localhost:5173/confirmado");
+    res.redirect(`${FRONTEND_URL}/confirmado`);
   });
 };
 

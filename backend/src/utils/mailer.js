@@ -11,8 +11,14 @@ const transporter = nodemailer.createTransport({
 });
 
 // FUNCIÓN DE ENVÍO
+// BACKEND_URL / FRONTEND_URL deben apuntar al dominio real en producción
+// (p. ej. https://sicpes-backend.onrender.com), configurados como variables
+// de entorno en el servicio de Render. En local caen a localhost por defecto.
+const BACKEND_URL = process.env.BACKEND_URL || "https://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://localhost:5173";
+
 const sendConfirmationEmail = async (email, token, nombre = "") => {
-  const verificationUrl = `https://localhost:3000/api/confirm/${token}`;
+  const verificationUrl = `${BACKEND_URL}/api/confirm/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({
@@ -75,7 +81,7 @@ const sendConfirmationEmail = async (email, token, nombre = "") => {
 };
 
 const sendForgotPasswordEmail = async (email, token, nombre = "") => {
-  const resetUrl = `https://localhost:5173/reset-password/${token}`;
+  const resetUrl = `${FRONTEND_URL}/reset-password/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({
