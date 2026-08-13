@@ -7,7 +7,7 @@ const createDefaultUsers = async () => {
     const userEmail = "luis.amador@gmail.com";
     
     const adminPass = await bcrypt.hash("admin1234", 10);
-    const userPass = await bcrypt.hash("paco1234", 10);
+    const userPass = await bcrypt.hash("luis1234", 10);
 
     // Verificar y crear Admin
     db.query("SELECT * FROM tbd_usuarios WHERE email = ?", [adminEmail], (err, results) => {
