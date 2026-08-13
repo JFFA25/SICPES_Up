@@ -4,6 +4,15 @@ const axios = require("axios");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const generatePDF = async (data) => {
+  // Falla rápido y con un mensaje claro si faltan las variables de entorno de
+  // PDFMonkey (típico cuando se despliega a un hosting nuevo, como Render,
+  // y el .env local -que está en .gitignore- no se replicó ahí manualmente).
+  if (!process.env.PDFMONKEY_API_KEY || !process.env.PDFMONKEY_TEMPLATE_ID) {
+    throw new Error(
+      "Faltan las variables de entorno PDFMONKEY_API_KEY / PDFMONKEY_TEMPLATE_ID en el servidor."
+    );
+  }
+
   try {
     const headers = {
       Authorization: `Bearer ${process.env.PDFMONKEY_API_KEY}`,
@@ -59,9 +68,11 @@ const generatePDF = async (data) => {
     };
 
   } catch (error) {
+    // Log detallado en el servidor (Render > backend service > Logs) para poder
+    // diagnosticar sin exponer estos detalles al cliente.
     console.error(
       "Error PDFMonkey:",
-      error.response?.data || error.message
+      JSON.stringify(error.response?.data || { message: error.message }, null, 2)
     );
     throw error;
   }

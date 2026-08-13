@@ -130,7 +130,7 @@ exports.generarReporteGeneral = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error crítico en generarReporteGeneral:", error.message);
+        console.error("Error crítico en generarReporteGeneral:", error.response?.data || error.message);
         return res.status(500).json({
             success: false,
             message: "Error interno al compilar el reporte general.",

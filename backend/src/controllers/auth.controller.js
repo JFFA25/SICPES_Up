@@ -110,6 +110,13 @@ const registerUser = async (req, res) => {
 
     createUser({ nombre, email: normalizedEmail, password: hashedPassword, token, telefono: phoneValue }, async (err) => {
       if (err) {
+        console.error("Error al registrar usuario:", err.code || err.message);
+
+        // El correo ya existe (UNIQUE KEY en tbd_usuarios.email) -> error del cliente, no del servidor
+        if (err.code === "ER_DUP_ENTRY") {
+          return res.status(409).json({ error: "Ese correo ya está registrado" });
+        }
+
         return res.status(500).json({ error: "Error al registrar" });
       }
 
