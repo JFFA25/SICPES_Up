@@ -68,12 +68,20 @@ const generatePDF = async (data) => {
     };
 
   } catch (error) {
-    // Log detallado en el servidor (Render > backend service > Logs) para poder
-    // diagnosticar sin exponer estos detalles al cliente.
-    console.error(
-      "Error PDFMonkey:",
-      JSON.stringify(error.response?.data || { message: error.message }, null, 2)
-    );
+    // Detalle real que devuelve PDFMonkey (p. ej. { errors: { document_template_id: ["can't be blank"] } }
+    // o "Template is not published"). error.message por sí solo solo dice "Request failed with status code 422".
+    const apiDetail = error.response?.data;
+
+    console.error("Error PDFMonkey:", JSON.stringify(apiDetail || { message: error.message }, null, 2));
+
+    if (apiDetail) {
+      const readable =
+        typeof apiDetail.errors === "object"
+          ? JSON.stringify(apiDetail.errors)
+          : apiDetail.message || JSON.stringify(apiDetail);
+      throw new Error(`PDFMonkey (${error.response.status}): ${readable}`);
+    }
+
     throw error;
   }
 };
