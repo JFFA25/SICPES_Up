@@ -11,7 +11,7 @@ Scripts de mantenimiento y datos de prueba para la base de datos.
 
 Originalmente esta lógica vivía en 2 stored procedures de MySQL (`sp_generar_reporte_demo` y `sp_limpiar_tablas`). Al migrar la base de datos a **TiDB Serverless**, dejaron de funcionar: TiDB no soporta stored procedures, triggers ni funciones definidas por el usuario (es una limitación conocida de TiDB frente a MySQL estándar, no una configuración que se pueda activar).
 
-Ambos SPs se reescribieron aquí como scripts de Node.js con la misma lógica exacta (loops, distribución de probabilidades, fechas), pero ejecutándose desde fuera de la base de datos en vez de adentro.
+Ambos SPs se reescribieron aquí como scripts de Node.js con la misma lógica exacta (loops, distribución de probabilidades, fechas), pero ejecutándose desde fuera de la base de datos en vez de adentro. `limpiar_usuarios.js` es un script nuevo, adicional a los 2 originales.
 
 ## Requisitos
 
@@ -45,12 +45,23 @@ node scripts/limpiar_tablas.js
 
 > Si se agrega una tabla nueva relacionada a este flujo de datos demo, se puede sumar su nombre al arreglo `TABLAS` dentro del script para que también se limpie.
 
+### `limpiar_usuarios.js`
+Trunca `tbd_usuarios` **junto con** `tbd_pagos`, `tbd_cuotas` y `tbd_reservaciones` (en ese orden), para no dejar reservaciones/pagos huérfanos apuntando a usuarios que ya no existen. Reinicia el contador de `AUTO_INCREMENT`, así que el próximo usuario insertado vuelve a tener `id = 1`.
+
+**Uso:**
+```bash
+node scripts/limpiar_usuarios.js
+```
+
+⚠️ Borra **todos** los usuarios sin excepción, incluidos el admin y el usuario regular que siembra `initUsers.js` al arrancar el backend. Como ese seed se vuelve a correr solo, con reiniciar el backend después de limpiar recuperas el acceso — pero cualquier cuenta creada manualmente después del seed se pierde para siempre.
+
 ## Cómo ejecutarlos
 
 **Con Docker corriendo** (`docker compose up` desde la raíz del proyecto):
 ```bash
 docker compose exec backend node scripts/generar_reporte_demo.js 20
 docker compose exec backend node scripts/limpiar_tablas.js
+docker compose exec backend node scripts/limpiar_usuarios.js
 ```
 
 **Sin Docker, localmente:**
@@ -58,8 +69,9 @@ docker compose exec backend node scripts/limpiar_tablas.js
 cd backend
 node scripts/generar_reporte_demo.js 20
 node scripts/limpiar_tablas.js
+node scripts/limpiar_usuarios.js
 ```
 
 **Contra producción (Render):** desde el dashboard del servicio `sicpes-backend` en Render, en el menú lateral hay una opción **"Shell"** que abre una terminal dentro del contenedor ya desplegado — ahí se pueden correr los mismos comandos directo contra la base de datos en producción.
 
-⚠️ **Ambos scripts se conectan a la base de datos que tenga configurada tu `.env` en ese momento** — no hay separación automática entre entorno local y producción. Antes de correr `limpiar_tablas.js`, confirma con un `type backend\.env` (Windows) o `cat backend/.env` (Mac/Linux) que estás apuntando a donde realmente quieres borrar datos.
+⚠️ **Los 3 scripts se conectan a la base de datos que tenga configurada tu `.env` en ese momento** — no hay separación automática entre entorno local y producción. Antes de correr `limpiar_tablas.js` o `limpiar_usuarios.js`, confirma con un `type backend\.env` (Windows) o `cat backend/.env` (Mac/Linux) que estás apuntando a donde realmente quieres borrar datos.
