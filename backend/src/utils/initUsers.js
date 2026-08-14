@@ -3,10 +3,10 @@ const bcrypt = require("bcrypt");
 
 const createDefaultUsers = async () => {
   try {
-    const adminEmail = "admin.sicpes@gmail.com";
-    const userEmail = "luis.amador@gmail.com";
+    const adminEmail = "sonic.amador@gmail.com";
+    const userEmail = "flores.amador2009@gmail.com";
     
-    const adminPass = await bcrypt.hash("admin1234", 10);
+    const adminPass = await bcrypt.hash("paco1234", 10);
     const userPass = await bcrypt.hash("luis1234", 10);
 
     // Verificar y crear Admin

@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 // FUNCIÓN DE ENVÍO
 const sendConfirmationEmail = async (email, token, nombre = "") => {
-  const verificationUrl = `${process.env.BACKEND_URL || "http://localhost:3000"}/api/confirm/${token}`;
+  const verificationUrl = `https://localhost:3000/api/confirm/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({
@@ -75,7 +75,7 @@ const sendConfirmationEmail = async (email, token, nombre = "") => {
 };
 
 const sendForgotPasswordEmail = async (email, token, nombre = "") => {
-  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password/${token}`;
+  const resetUrl = `https://localhost:5173/reset-password/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({

@@ -150,14 +150,14 @@ const confirmUser = (req, res) => {
   db.query(sql, [token], (err, result) => {
     if (err) {
       console.error(err);
-      return res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/error`);
+      return res.redirect("https://localhost:5173/error");
     }
 
     if (result.affectedRows === 0) {
-      return res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/error`);
+      return res.redirect("https://localhost:5173/error");
     }
 
-    res.redirect(`${process.env.FRONTEND_URL || "http://localhost:5173"}/confirmado`);
+    res.redirect("https://localhost:5173/confirmado");
   });
 };
 
