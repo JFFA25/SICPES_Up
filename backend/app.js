@@ -48,6 +48,12 @@ app.use(
   })
 );
 
+// RUTA RAÍZ - solo para que no salga "Cannot GET /" al visitar el dominio pelón.
+// Tu app real vive toda bajo /api/..., esto es únicamente un saludo informativo.
+app.get("/", (req, res) => {
+  res.send("SICPES backend funcionando");
+});
+
 // RUTAS (DESPUÉS DE SESSION)
 const authRoutes = require("./src/routes/auth.routes");
 app.use("/api", authRoutes);
@@ -60,6 +66,9 @@ app.use("/api/payment", paymentRoutes);
 
 const roomRoutes = require("./src/routes/room.routes");
 app.use("/api/rooms", roomRoutes);
+
+const mobileRoutes = require("./src/routes/mobile.routes");
+app.use("/api/mobile", mobileRoutes);
 
 const adminRoutes = require("./src/routes/admin.routes");
 app.use("/api/admin", adminRoutes);
