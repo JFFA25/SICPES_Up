@@ -1,5 +1,8 @@
 const nodemailer = require("nodemailer");
 
+const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const backendBaseUrl = process.env.BACKEND_URL || "http://localhost:3000";
+
 // CONFIGURACIÓN
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
@@ -12,7 +15,7 @@ const transporter = nodemailer.createTransport({
 
 // FUNCIÓN DE ENVÍO
 const sendConfirmationEmail = async (email, token, nombre = "") => {
-  const verificationUrl = `https://localhost:3000/api/confirm/${token}`;
+  const verificationUrl = `${backendBaseUrl}/api/confirm/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({
@@ -75,7 +78,7 @@ const sendConfirmationEmail = async (email, token, nombre = "") => {
 };
 
 const sendForgotPasswordEmail = async (email, token, nombre = "") => {
-  const resetUrl = `https://localhost:5173/reset-password/${token}`;
+  const resetUrl = `${frontendBaseUrl}/reset-password/${token}`;
   const saludo = nombre ? `Hola, ${nombre}` : "Hola";
 
   await transporter.sendMail({

@@ -5,6 +5,8 @@ const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../database/db");
 
+const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
 // GLOBAL MAP TO TRACK USER SESSIONS
 const activeSessions = new Map();
 const pendingVerifications = new Map();
@@ -150,14 +152,14 @@ const confirmUser = (req, res) => {
   db.query(sql, [token], (err, result) => {
     if (err) {
       console.error(err);
-      return res.redirect("https://localhost:5173/error");
+      return res.redirect(`${frontendBaseUrl}/error`);
     }
 
     if (result.affectedRows === 0) {
-      return res.redirect("https://localhost:5173/error");
+      return res.redirect(`${frontendBaseUrl}/error`);
     }
 
-    res.redirect("https://localhost:5173/confirmado");
+    res.redirect(`${frontendBaseUrl}/confirmado`);
   });
 };
 
