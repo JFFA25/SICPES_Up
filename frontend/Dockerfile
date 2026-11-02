@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
+# Commit que se registra en dist/version.json (lo escribe el script "postbuild")
+ARG RENDER_GIT_COMMIT=unknown
+ENV RENDER_GIT_COMMIT=$RENDER_GIT_COMMIT
 COPY package*.json ./
 RUN npm ci
 COPY . .
