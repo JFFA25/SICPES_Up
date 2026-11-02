@@ -23,6 +23,7 @@ build/
 .vscode/
 .idea/
 *.log
-   *.pem
-   *.key
-   mkcert.exe
+*.pem
+*-key.pem
+*.key
+mkcert.exe
