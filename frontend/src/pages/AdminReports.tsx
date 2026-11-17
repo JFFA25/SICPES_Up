@@ -28,25 +28,23 @@ const AdminReports = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-page-transition transition-colors">
-      <AdminNavbar active="reports" />
+    <AdminNavbar active="reports">
+      <div className="admin-page">
+        <header className="admin-page-head">
+          <div>
+            <span className="admin-eyebrow">PANEL ADMINISTRATIVO</span>
+            <h1>Reportes</h1>
+            <p>Genera y descarga reportes en PDF con la información de tu sistema.</p>
+          </div>
+        </header>
 
-      <main className="px-8 py-10 max-w-[1400px] mx-auto w-full">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Panel administrativo</p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900">Reportes</h1>
-          <p className="mt-2 text-sm text-slate-600 max-w-2xl">
-            Genera y descarga reportes en PDF con la información de tu sistema.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="admin-report-grid">
           {AVAILABLE_REPORTS.map((report) => {
             const Icon = report.icon;
             return (
               <div
                 key={report.key}
-                className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-transform hover:-translate-y-1"
+                className="admin-panel admin-report-card"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-blue-50">
@@ -65,7 +63,7 @@ const AdminReports = () => {
             return (
               <div
                 key={report.key}
-                className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 p-6 flex flex-col items-start"
+                className="admin-panel admin-report-upcoming"
               >
                 <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-100 mb-3">
                   <Icon className="w-5 h-5 text-slate-400" strokeWidth={2.25} />
@@ -78,8 +76,8 @@ const AdminReports = () => {
         </div>
 
         <LiveDashboard />
-      </main>
-    </div>
+      </div>
+    </AdminNavbar>
   );
 };
 

@@ -76,8 +76,9 @@ const ReportGenerator = () => {
       setLastSummary(data.summary || null);
       showToast("Reporte generado y descargado correctamente.", "success");
       setOpen(false);
-    } catch (err: any) {
-      showToast(err.message || "Ocurrió un error inesperado al generar el PDF.", "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Ocurrió un error inesperado al generar el PDF.";
+      showToast(message, "error");
     } finally {
       setIsGenerating(false);
     }

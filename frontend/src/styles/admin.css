@@ -1,0 +1,1167 @@
+.sicpes-admin {
+  --admin-green: #287A51;
+  --admin-dark: #173D2A;
+  --admin-muted: #66766A;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #FDFBF7;
+  color: var(--admin-dark);
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.sicpes-admin *,
+.sicpes-admin *::before,
+.sicpes-admin *::after {
+  box-sizing: border-box;
+}
+.sicpes-admin button,
+.sicpes-admin input,
+.sicpes-admin select,
+.sicpes-admin textarea {
+  font: inherit;
+}
+.sicpes-admin .mk-icon {
+  display: block;
+  flex: none;
+}
+.sicpes-admin .admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 9px 24px;
+  border-bottom: 1px solid #EDE8DB;
+  background: rgba(253,251,247,.96);
+  backdrop-filter: blur(12px);
+}
+.sicpes-admin .admin-brand-group,
+.sicpes-admin .admin-brand,
+.sicpes-admin .admin-user {
+  display: flex;
+  align-items: center;
+}
+.sicpes-admin .admin-brand-group {
+  gap: 10px;
+}
+.sicpes-admin .admin-brand {
+  gap: 9px;
+  color: var(--admin-dark);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+.sicpes-admin .admin-brand img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+  border: 1px solid #E3EADF;
+  border-radius: 9px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-brand small {
+  display: block;
+  margin-top: 4px;
+  color: #647568;
+  font: 600 7px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .13em;
+}
+.sicpes-admin .admin-top-links {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.sicpes-admin .admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  color: #56685A;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 160ms ease, color 160ms ease;
+}
+.sicpes-admin .admin-nav-link:hover {
+  background: #F1F4ED;
+  color: #245A3B;
+}
+.sicpes-admin .admin-nav-link.active {
+  background: #E3F0E5;
+  color: #245A3B;
+}
+.sicpes-admin .admin-user {
+  justify-self: end;
+  gap: 9px;
+  color: #3D5745;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.sicpes-admin .admin-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  background: #DDF0E2;
+  color: #26603F;
+  font-size: 9px;
+  font-weight: 700;
+}
+.sicpes-admin .admin-notifications {
+  display: inline-flex;
+  align-items: center;
+  color: #35533F;
+}
+.sicpes-admin .admin-notifications > div > button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #E4E0D2;
+  border-radius: 10px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-logout,
+.sicpes-admin .admin-menu-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #E4E0D2;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: #35533F;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.sicpes-admin .admin-logout:hover,
+.sicpes-admin .admin-menu-toggle:hover {
+  border-color: #CBD8CB;
+  background: #F7FAF5;
+}
+.sicpes-admin .admin-menu-toggle {
+  display: none;
+}
+.sicpes-admin .admin-workspace {
+  flex: 1;
+  min-height: calc(100vh - 68px);
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  transition: grid-template-columns 220ms cubic-bezier(.22,1,.36,1);
+}
+.sicpes-admin .admin-sidebar {
+  position: sticky;
+  top: 68px;
+  align-self: start;
+  height: calc(100vh - 68px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden auto;
+  padding: 18px 12px;
+  border-right: 1px solid #E8E4D7;
+  background: #F4F2EA;
+  transition: opacity 180ms ease, padding 220ms ease;
+}
+.sicpes-admin .admin-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sicpes-admin .admin-side-label {
+  margin: 6px 8px 7px;
+  color: #5F7065;
+  font: 700 8px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .14em;
+}
+.sicpes-admin .admin-side-help {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #E2DED0;
+}
+.sicpes-admin .admin-main {
+  min-width: 0;
+  padding: 25px clamp(18px, 2.5vw, 36px) 36px;
+  animation: admin-page-in 240ms ease-out both;
+}
+.sicpes-admin .admin-page {
+  width: min(100%, 1320px);
+  margin: 0 auto;
+}
+.sicpes-admin .admin-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.sicpes-admin .admin-eyebrow {
+  display: block;
+  color: #4C7A5F;
+  font: 700 8px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.sicpes-admin .admin-page-head h1 {
+  margin: 5px 0;
+  color: #173D2A;
+  font-size: clamp(24px, 2.5vw, 30px);
+  line-height: 1.1;
+  letter-spacing: -.035em;
+}
+.sicpes-admin .admin-page-head p {
+  margin: 5px 0 0;
+  color: #66766A;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.sicpes-admin .admin-head-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #E4E0D2;
+  border-radius: 9px;
+  background: #FFFFFF;
+  color: #35533F;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sicpes-admin .admin-head-count {
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #FCE7E4;
+  color: #A93830;
+  font-size: 8px;
+}
+.sicpes-admin .admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.sicpes-admin .admin-stat {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #E9E4D7;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  background: #EAF6EC;
+  color: #287A51;
+}
+.sicpes-admin .admin-stat strong {
+  display: block;
+  color: #173D2A;
+  font-size: 15px;
+  line-height: 1.1;
+}
+.sicpes-admin .admin-stat small {
+  display: block;
+  margin-top: 3px;
+  color: #66766A;
+  font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.sicpes-admin .admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 10px;
+}
+.sicpes-admin .admin-filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.sicpes-admin .admin-filter {
+  padding: 6px 9px;
+  border: 1px solid #E9E4D7;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #56685A;
+  font-size: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sicpes-admin .admin-filter.active {
+  border-color: #287A51;
+  background: #287A51;
+  color: #FFFFFF;
+}
+.sicpes-admin .admin-search {
+  width: min(100%, 240px);
+  position: relative;
+}
+.sicpes-admin .admin-search .mk-icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: #839087;
+}
+.sicpes-admin .admin-search input,
+.sicpes-admin .admin-field input,
+.sicpes-admin .admin-field select,
+.sicpes-admin .admin-field textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #DDD9CB;
+  border-radius: 9px;
+  outline: none;
+  background: #FCFBF6;
+  color: #173D2A;
+  font-size: 10px;
+}
+.sicpes-admin .admin-search input {
+  padding-left: 32px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-search input:focus,
+.sicpes-admin .admin-field input:focus,
+.sicpes-admin .admin-field select:focus,
+.sicpes-admin .admin-field textarea:focus {
+  border-color: #287A51;
+  box-shadow: 0 0 0 3px rgba(47,138,92,.14);
+}
+.sicpes-admin .admin-list {
+  overflow: hidden;
+  border: 1px solid #E9E4D7;
+  border-radius: 14px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-list-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(3, minmax(90px, .7fr)) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border-bottom: 1px solid #F0EDE4;
+  transition: background 160ms ease;
+}
+.sicpes-admin .admin-list-row:last-child {
+  border-bottom: 0;
+}
+.sicpes-admin .admin-list-row:hover {
+  background: #FBFCF9;
+}
+.sicpes-admin .admin-person {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sicpes-admin .admin-person-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #DDF0E2;
+  color: #26603F;
+  font-size: 8px;
+  font-weight: 700;
+}
+.sicpes-admin .admin-person-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.sicpes-admin .admin-person-copy {
+  min-width: 0;
+}
+.sicpes-admin .admin-person-copy strong,
+.sicpes-admin .admin-person-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sicpes-admin .admin-person-copy strong {
+  color: #1D432D;
+  font-size: 10px;
+}
+.sicpes-admin .admin-person-copy small {
+  margin-top: 2px;
+  color: #738176;
+  font-size: 8px;
+}
+.sicpes-admin .admin-cell {
+  color: #455A4A;
+  font-size: 9px;
+}
+.sicpes-admin .admin-cell strong {
+  display: block;
+  color: #173D2A;
+  font-size: 10px;
+}
+.sicpes-admin .admin-cell small {
+  display: block;
+  margin-top: 3px;
+  color: #738176;
+  font-size: 8px;
+}
+.sicpes-admin .admin-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.sicpes-admin .admin-hide-tablet,
+.sicpes-admin .admin-hide-mobile {
+  display: block;
+}
+.sicpes-admin .admin-status {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  padding: 4px 7px;
+  border: 1px solid #E1DDD0;
+  border-radius: 999px;
+  background: #F0EEE5;
+  color: #6B6252;
+  font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sicpes-admin .admin-status::before {
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.sicpes-admin .admin-status.pending {
+  border-color: #F3E1B4;
+  background: #FFF3D8;
+  color: #8A5B00;
+}
+.sicpes-admin .admin-status.success {
+  border-color: #C9EBD3;
+  background: #E2F5E7;
+  color: #1E7A45;
+}
+.sicpes-admin .admin-status.danger {
+  border-color: #F3CDC8;
+  background: #FCE7E4;
+  color: #A93830;
+}
+.sicpes-admin .admin-status.info {
+  border-color: #D5E4F3;
+  background: #EFF6FC;
+  color: #3B6691;
+}
+.sicpes-admin .admin-filter span {
+  opacity: .8;
+}
+.sicpes-admin .admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 31px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--admin-green);
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.sicpes-admin .admin-btn:hover:not(:disabled) {
+  background: #226F49;
+  transform: translateY(-1px);
+}
+.sicpes-admin .admin-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+.sicpes-admin .admin-btn.secondary {
+  border-color: #CFE6D5;
+  background: #EAF5EC;
+  color: #225C3B;
+}
+.sicpes-admin .admin-btn.secondary:hover:not(:disabled) {
+  background: #DFF0E3;
+}
+.sicpes-admin .admin-btn.danger {
+  border-color: #F3CDC8;
+  background: #FFFFFF;
+  color: #A93830;
+}
+.sicpes-admin .admin-btn.danger:hover:not(:disabled) {
+  background: #FCE7E4;
+}
+.sicpes-admin .admin-btn.ghost {
+  border-color: #DDD8C9;
+  background: #FFFFFF;
+  color: #35533F;
+}
+.sicpes-admin .admin-btn.ghost:hover:not(:disabled) {
+  background: #F5F2E9;
+}
+.sicpes-admin .admin-empty {
+  padding: 40px 18px;
+  color: #77847A;
+  font-size: 10px;
+  text-align: center;
+}
+.sicpes-admin .admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 12px;
+}
+.sicpes-admin .admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15,35,23,.5);
+  backdrop-filter: blur(4px);
+}
+.sicpes-admin .admin-modal {
+  width: min(100%, 900px);
+  max-height: min(92vh, 760px);
+  overflow: auto;
+  border: 1px solid #E9E4D7;
+  border-radius: 16px;
+  background: #FDFBF7;
+  box-shadow: 0 24px 70px rgba(15,35,23,.25);
+  animation: admin-page-in 180ms ease-out both;
+}
+.sicpes-admin .admin-payment-modal {
+  width: min(100%, 560px);
+}
+.sicpes-admin .admin-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 19px;
+  border-bottom: 1px solid #EDE8DB;
+}
+.sicpes-admin .admin-modal-header h2 {
+  margin: 4px 0;
+  color: #173D2A;
+  font-size: 17px;
+}
+.sicpes-admin .admin-modal-header p {
+  margin: 0;
+  color: #66766A;
+  font-size: 9px;
+}
+.sicpes-admin .admin-modal-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid #E4E0D2;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #56685A;
+  font-size: 18px;
+  cursor: pointer;
+}
+.sicpes-admin .admin-modal-body {
+  padding: 17px 19px;
+}
+.sicpes-admin .admin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 13px 19px;
+  border-top: 1px solid #EDE8DB;
+}
+.sicpes-admin .admin-panel {
+  padding: 16px;
+  border: 1px solid #E9E4D7;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-panel h3 {
+  margin: 0 0 10px;
+  color: #1D432D;
+  font-size: 11px;
+}
+.sicpes-admin .admin-panel p {
+  color: #66766A;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.sicpes-admin .admin-panel h2 {
+  margin: 5px 0;
+  color: #1D432D;
+  font-size: 15px;
+}
+.sicpes-admin .admin-panel > p {
+  margin: 4px 0 14px;
+}
+.sicpes-admin .admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.sicpes-admin .admin-detail {
+  padding: 9px;
+  border: 1px solid #F0EDE4;
+  border-radius: 8px;
+  background: #FCFBF6;
+}
+.sicpes-admin .admin-detail small {
+  display: block;
+  color: #7A877D;
+  font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.sicpes-admin .admin-detail strong {
+  display: block;
+  margin-top: 4px;
+  color: #1D432D;
+  font-size: 9px;
+}
+.sicpes-admin .admin-assignment-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(210px, .7fr);
+  align-items: start;
+  gap: 12px;
+}
+.sicpes-admin .admin-assignment-person {
+  margin-bottom: 12px;
+}
+.sicpes-admin .admin-room-panel {
+  margin-top: 10px;
+}
+.sicpes-admin .admin-assignment-summary {
+  margin-top: 11px;
+  padding: 9px;
+  border: 1px solid #D5E8D8;
+  border-radius: 8px;
+  background: #F1FAF3;
+  color: #287A51;
+  font-size: 9px;
+  font-weight: 700;
+}
+.sicpes-admin .admin-room-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.sicpes-admin .admin-room-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #E9E4D7;
+  border-radius: 9px;
+  background: #FFFFFF;
+  color: #35533F;
+  font-size: 9px;
+  cursor: pointer;
+}
+.sicpes-admin .admin-room-option.selected {
+  border-color: #287A51;
+  background: #F1FAF3;
+  box-shadow: 0 0 0 2px rgba(47,138,92,.12);
+}
+.sicpes-admin .admin-room-option:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+.sicpes-admin .admin-room-option small {
+  color: #6C7D70;
+  font-size: 7px;
+}
+.sicpes-admin .admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 11px;
+}
+.sicpes-admin .admin-field span {
+  color: #66766A;
+  font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.sicpes-admin .admin-floor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.sicpes-admin .admin-floor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(230px, .7fr);
+  align-items: start;
+  gap: 12px;
+}
+.sicpes-admin .admin-floor-card {
+  padding: 14px;
+  border: 1px solid #E9E4D7;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-floor-icon {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border-radius: 9px;
+  background: #EAF6EC;
+  color: #287A51;
+}
+.sicpes-admin .admin-floor-count {
+  margin: 0;
+  color: #738176;
+  font-size: 8px;
+}
+.sicpes-admin .admin-floor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sicpes-admin .admin-floor-card h2 {
+  margin: 3px 0;
+  color: #1D432D;
+  font-size: 12px;
+}
+.sicpes-admin .admin-floor-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #F3CDC8;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #A93830;
+  cursor: pointer;
+}
+.sicpes-admin .admin-floor-delete:disabled {
+  cursor: not-allowed;
+  opacity: .42;
+}
+.sicpes-admin .admin-floor-delete:hover:not(:disabled) {
+  background: #FCE7E4;
+}
+.sicpes-admin .admin-room-tags span {
+  padding: 4px 6px;
+  border: 1px solid #E9E4D7;
+  border-radius: 6px;
+  color: #56685A;
+  font: 600 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.sicpes-admin .admin-room-tags span.occupied {
+  border-color: #F3E1B4;
+  background: #FFF8E9;
+  color: #8A5B00;
+}
+.sicpes-admin .admin-floor-form .admin-btn {
+  width: 100%;
+}
+.sicpes-admin .admin-settings-panel > p {
+  margin: 5px 0 17px;
+}
+.sicpes-admin .admin-settings-side {
+  display: grid;
+  gap: 12px;
+}
+.sicpes-admin .admin-input-prefix {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #DDD9CB;
+  border-radius: 9px;
+  background: #FCFBF6;
+}
+.sicpes-admin .admin-input-prefix > span {
+  padding-left: 11px;
+  color: #738176;
+  font-size: 10px;
+}
+.sicpes-admin .admin-input-prefix input {
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+}
+.sicpes-admin .admin-settings-note,
+.sicpes-admin .admin-settings-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #477354;
+  font-size: 9px;
+  font-weight: 600;
+}
+.sicpes-admin .admin-settings-note {
+  margin-top: 5px;
+  padding: 9px;
+  border-radius: 8px;
+  background: #F1F8EF;
+}
+.sicpes-admin .admin-settings-badge {
+  padding: 8px 10px;
+  border: 1px solid #D9E8D8;
+  border-radius: 9px;
+  background: #F4FAF2;
+}
+.sicpes-admin .admin-settings-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #F5F7F1;
+}
+.sicpes-admin .admin-settings-info-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: #E5F0E3;
+  color: #287A51;
+}
+.sicpes-admin .admin-settings-info strong {
+  color: #1D432D;
+  font-size: 10px;
+}
+.sicpes-admin .admin-settings-info p {
+  margin: 4px 0 0;
+}
+.sicpes-admin .admin-settings-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+.sicpes-admin .admin-arrears-list {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+}
+.sicpes-admin .admin-arrears-card {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(70px, .5fr) minmax(90px, .6fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #E9E4D7;
+  border-radius: 12px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-arrears-period small,
+.sicpes-admin .admin-arrears-amount small {
+  display: block;
+  color: #738176;
+  font: 700 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .06em;
+}
+.sicpes-admin .admin-arrears-period strong,
+.sicpes-admin .admin-arrears-amount strong {
+  display: block;
+  margin-top: 4px;
+  color: #1D432D;
+  font-size: 10px;
+}
+.sicpes-admin .admin-arrears-amount strong {
+  color: #A93830;
+}
+.sicpes-admin .admin-loading-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #287A51;
+  animation: admin-loading-pulse 900ms ease-in-out infinite alternate;
+}
+.sicpes-admin .admin-floor-meter {
+  height: 4px;
+  overflow: hidden;
+  margin: 10px 0 7px;
+  border-radius: 4px;
+  background: #E7EDE3;
+}
+.sicpes-admin .admin-floor-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #54A66F;
+}
+.sicpes-admin .admin-room-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+.sicpes-admin .admin-room-tag {
+  padding: 4px 6px;
+  border: 1px solid #E9E4D7;
+  border-radius: 6px;
+  color: #56685A;
+  font: 600 7px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.sicpes-admin .admin-room-tag.occupied {
+  border-color: #F3E1B4;
+  background: #FFF8E9;
+  color: #8A5B00;
+}
+.sicpes-admin .admin-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(230px, .8fr);
+  gap: 12px;
+  align-items: start;
+}
+.sicpes-admin .admin-setting-row {
+  display: grid;
+  grid-template-columns: minmax(120px, .8fr) minmax(140px, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #F0EDE4;
+}
+.sicpes-admin .admin-setting-row:last-child {
+  border-bottom: 0;
+}
+.sicpes-admin .admin-setting-row > span {
+  color: #56685A;
+  font-size: 9px;
+  font-weight: 600;
+}
+.sicpes-admin .admin-alert {
+  margin-bottom: 12px;
+}
+.sicpes-admin .admin-metric-value {
+  color: #173D2A;
+  font-size: 22px;
+  font-weight: 700;
+}
+.sicpes-admin .admin-receipt-placeholder {
+  min-height: 165px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 13px;
+  padding: 15px;
+  border: 1px dashed #D7DCCF;
+  border-radius: 10px;
+  background: #F5F7F1;
+  color: #78857A;
+  font-size: 9px;
+  text-align: center;
+}
+.sicpes-admin .admin-receipt-placeholder > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #EAF6EC;
+  color: #287A51;
+}
+.sicpes-admin .admin-receipt-placeholder strong {
+  color: #35533F;
+  font-size: 10px;
+}
+.sicpes-admin .admin-receipt-placeholder p {
+  max-width: 290px;
+  margin: 0;
+  line-height: 1.5;
+}
+.sicpes-admin .admin-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 12px;
+}
+.sicpes-admin .admin-report-card,
+.sicpes-admin .admin-report-upcoming {
+  min-width: 0;
+}
+.sicpes-admin .admin-report-upcoming {
+  border-style: dashed;
+  background: #F7F7F1;
+}
+.sicpes-admin .admin-report-upcoming h2 {
+  margin: 0 0 5px;
+}
+.sicpes-admin .admin-form-error {
+  margin: 0 0 10px;
+  color: #A93830;
+  font-size: 9px;
+}
+@keyframes admin-page-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes admin-loading-pulse {
+  to { opacity: .25; transform: scale(.65); }
+}
+@media (max-width: 1050px) {
+  .sicpes-admin .admin-topbar {
+    grid-template-columns: 1fr auto;
+  }
+  .sicpes-admin .admin-top-links {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .sicpes-admin .admin-topbar {
+    min-height: 60px;
+    padding: 8px 12px;
+  }
+  .sicpes-admin .admin-menu-toggle {
+    display: grid;
+  }
+  .sicpes-admin .admin-user-name {
+    display: none;
+  }
+  .sicpes-admin .admin-workspace {
+    min-height: calc(100vh - 60px);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-sidebar {
+    position: fixed;
+    top: 60px;
+    bottom: 0;
+    left: 0;
+    z-index: 25;
+    width: 220px;
+    height: auto;
+    box-shadow: 8px 0 25px rgba(20,50,30,.08);
+    transition: transform 220ms cubic-bezier(.22,1,.36,1);
+  }
+  .sicpes-admin .admin-workspace.sidebar-closed .admin-sidebar {
+    transform: translateX(-105%);
+  }
+  .sicpes-admin .admin-main {
+    padding: 19px 13px 28px;
+  }
+  .sicpes-admin .admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sicpes-admin .admin-list-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(72px, .7fr) auto;
+    gap: 8px;
+  }
+  .sicpes-admin .admin-list-row .admin-hide-tablet {
+    display: none;
+  }
+  .sicpes-admin .admin-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-floor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-report-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sicpes-admin .admin-assignment-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 520px) {
+  .sicpes-admin .admin-page-head {
+    flex-direction: column;
+  }
+  .sicpes-admin .admin-toolbar {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .sicpes-admin .admin-search {
+    width: 100%;
+  }
+  .sicpes-admin .admin-list-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+  .sicpes-admin .admin-list-row .admin-hide-mobile {
+    display: none;
+  }
+  .sicpes-admin .admin-stats {
+    gap: 7px;
+  }
+  .sicpes-admin .admin-stat {
+    padding: 9px;
+  }
+  .sicpes-admin .admin-stat-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .sicpes-admin .admin-modal-backdrop {
+    padding: 8px;
+  }
+  .sicpes-admin .admin-modal-body {
+    padding: 12px;
+  }
+  .sicpes-admin .admin-room-options,
+  .sicpes-admin .admin-floor-grid,
+  .sicpes-admin .admin-report-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-arrears-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .sicpes-admin .admin-arrears-period {
+    grid-column: 1;
+  }
+  .sicpes-admin .admin-arrears-amount {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+  .sicpes-admin .admin-arrears-card > .admin-btn {
+    grid-column: 1 / -1;
+  }
+  .sicpes-admin .admin-setting-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sicpes-admin *,
+  .sicpes-admin *::before,
+  .sicpes-admin *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}

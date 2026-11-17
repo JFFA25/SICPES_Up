@@ -1,384 +1,384 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AdminNavbar from "../components/admin/AdminNavbar";
-import StatCard from "../components/admin/StatCard";
-import Pagination from "../components/admin/Pagination";
-import StatusBadge from "../components/StatusBadge";
-import ConfirmModal from "../components/ConfirmModal";
 import Alert from "../components/Alert";
+import ConfirmModal from "../components/ConfirmModal";
+import Pagination from "../components/admin/Pagination";
+import Icon from "../components/ui/Icon";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
 interface Reservation {
   id: number;
   nombre: string;
+  email: string;
+  foto_perfil_url?: string | null;
   fecha_ingreso: string | null;
   tipo: string;
-  piso: string;
-  habitacion: string;
-  monto: string | number;
+  piso: string | number | null;
+  habitacion: string | number | null;
+  monto: string | number | null;
   estado: string;
+  motivo_rechazo?: string | null;
 }
 
-interface EditData {
-  piso: string;
-  habitacion: string;
-  monto: string;
+interface FloorRooms {
+  piso: string | number;
+  habitaciones: string;
 }
 
-const FILTERS = ["Todas", "Pendientes", "Aceptadas", "Rechazadas", "Finalizadas"] as const;
-type FilterValue = typeof FILTERS[number];
+const FILTERS = [
+  { label: "Todas", value: "all" },
+  { label: "Pendientes", value: "pendiente" },
+  { label: "Aceptadas", value: "aceptada" },
+  { label: "Rechazadas", value: "rechazada" },
+  { label: "Finalizadas", value: "finalizada" },
+] as const;
 
-const FILTER_TO_ESTADO: Record<FilterValue, string | null> = {
-  Todas: null,
-  Pendientes: "pendiente",
-  Aceptadas: "aceptada",
-  Rechazadas: "rechazada",
-  Finalizadas: "finalizada",
+const initials = (name: string) =>
+  name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+
+const formatDate = (value: string | null) => {
+  const date = value?.split("T")[0];
+  if (!date) return "—";
+  const [year, month, day] = date.split("-").map(Number);
+  return year && month && day ? `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}` : "—";
+};
+
+const money = (value: string | number | null) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 })
+    .format(Number(value) || 0);
+
+const statusClass = (status: string) => {
+  if (status === "pendiente") return "pending";
+  if (status === "aceptada") return "success";
+  if (status === "rechazada" || status === "cancelada") return "danger";
+  if (status === "finalizada") return "info";
+  return "";
 };
 
 const AdminReservations = () => {
   const navigate = useNavigate();
-
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const { message, showError, clear } = useTimedMessage();
-  const [filter, setFilter] = useState<FilterValue>("Todas");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState<EditData>({ piso: "", habitacion: "", monto: "" });
-
+  const [floors, setFloors] = useState<FloorRooms[]>([]);
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("all");
+  const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Modal de confirmación para el rechazo (reemplaza window.prompt)
-  const [rejectingId, setRejectingId] = useState<number | null>(null);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, searchTerm]);
+  const [assignment, setAssignment] = useState<Reservation | null>(null);
+  const [selectedFloor, setSelectedFloor] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [rejecting, setRejecting] = useState<number | null>(null);
+  const { message, showError, showSuccess, clear } = useTimedMessage();
 
   const fetchReservations = async () => {
     try {
-      const res = await fetch(`/api/admin/reservations`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
+      const response = await fetch("/api/admin/reservations", { credentials: "include" });
+      if (response.status === 401) {
         navigate("/login");
         return;
       }
+      if (!response.ok) throw new Error("No se pudieron cargar las reservaciones.");
+      const data: unknown = await response.json();
+      if (!Array.isArray(data)) throw new Error("La respuesta de reservaciones no es válida.");
+      setReservations(data as Reservation[]);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "No se pudieron cargar las reservaciones.");
+    }
+  };
 
-      const data = await res.json();
-      setReservations(data);
-    } catch {
-      showError("Error al cargar reservaciones");
+  const fetchFloors = async () => {
+    try {
+      const response = await fetch("/api/rooms", { credentials: "include" });
+      if (!response.ok) throw new Error("No se pudieron cargar las habitaciones.");
+      const data = await response.json();
+      setFloors(Array.isArray(data.lista) ? data.lista : []);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "No se pudieron cargar las habitaciones.");
     }
   };
 
   useEffect(() => {
+    document.title = "Reservaciones | Panel administrativo";
     fetchReservations();
+    fetchFloors();
+    // Las funciones de carga se disparan una vez al montar la página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateStatus = async (id: number, estado: string, motivoRechazo?: string) => {
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, search]);
+
+  const counts = useMemo(() => ({
+    total: reservations.length,
+    pending: reservations.filter((item) => item.estado === "pendiente").length,
+    accepted: reservations.filter((item) => item.estado === "aceptada").length,
+    rejected: reservations.filter((item) => item.estado === "rechazada" || item.estado === "cancelada").length,
+  }), [reservations]);
+
+  const filteredReservations = useMemo(() => reservations.filter((item) => {
+    const matchesStatus = filter === "all" ||
+        item.estado === filter ||
+        (filter === "rechazada" && item.estado === "cancelada");
+    const searchText = `${item.nombre} ${item.email} ${item.id} ${item.tipo} ${item.habitacion || ""}`.toLowerCase();
+    return matchesStatus && searchText.includes(search.trim().toLowerCase());
+  }), [filter, reservations, search]);
+
+  const itemsPerPage = 8;
+  const currentItems = filteredReservations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const roomNames = floors.find((floor) => String(floor.piso) === selectedFloor)?.habitaciones
+    .split(",").map((room) => room.trim()).filter(Boolean) || [];
+  const availableRooms = roomNames.filter((room) => !reservations.some((item) =>
+    item.id !== assignment?.id &&
+    item.estado === "aceptada" &&
+    String(item.piso) === selectedFloor &&
+    String(item.habitacion) === room
+  ));
+
+  const openAssignment = (item: Reservation) => {
+    const initialFloor = item.piso ? String(item.piso) : String(floors[0]?.piso ?? "");
+    setAssignment(item);
+    setSelectedFloor(initialFloor);
+    setSelectedRoom(item.habitacion ? String(item.habitacion) : "");
+    setAmount(Number(item.monto) || (item.tipo === "compartida" ? 1800 : 2500));
+  };
+
+  const updateReservation = async (id: number, payload: Record<string, unknown>, successText: string) => {
     try {
-      const payload: { estado: string; motivo_rechazo?: string } = { estado };
-
-      if (estado === "rechazada" && motivoRechazo && motivoRechazo.trim() !== "") {
-        payload.motivo_rechazo = motivoRechazo;
-      }
-
-      const res = await fetch(`/api/admin/reservations/${id}`, {
+      const response = await fetch(`/api/admin/reservations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(payload),
       });
-
-      if (!res.ok) {
-        showError("Error al actualizar");
-        return;
-      }
-      fetchReservations();
-    } catch {
-      showError("Error del servidor");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "No se pudo actualizar la reservación.");
+      showSuccess(successText);
+      await fetchReservations();
+      return true;
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "No se pudo actualizar la reservación.");
+      return false;
     }
   };
 
-  const handleRejectConfirm = (motivo?: string) => {
-    if (rejectingId !== null) {
-      updateStatus(rejectingId, "rechazada", motivo);
+  const assignRoom = async () => {
+    if (!assignment || !selectedFloor || !availableRooms.includes(selectedRoom)) {
+      showError("Selecciona un piso y una habitación disponible.");
+      return;
     }
-    setRejectingId(null);
-  };
-
-  const saveEdit = async (id: number) => {
-    try {
-      const res = await fetch(`/api/admin/reservations/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(editData),
-      });
-
-      if (!res.ok) {
-        showError("Error al actualizar");
-        return;
-      }
-      setEditingId(null);
-      fetchReservations();
-    } catch {
-      showError("Error del servidor");
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showError("Ingresa un monto mensual válido.");
+      return;
     }
+
+    setSaving(true);
+    const updated = await updateReservation(assignment.id, {
+      estado: "aceptada",
+      piso: selectedFloor,
+      habitacion: selectedRoom,
+      monto: amount,
+    }, "Habitación asignada y reservación aceptada.");
+    if (updated) setAssignment(null);
+    setSaving(false);
   };
 
-  const counts: Record<FilterValue, number> = {
-    Todas: reservations.length,
-    Pendientes: reservations.filter((r) => r.estado === "pendiente").length,
-    Aceptadas: reservations.filter((r) => r.estado === "aceptada").length,
-    Rechazadas: reservations.filter((r) => r.estado === "rechazada").length,
-    Finalizadas: reservations.filter((r) => r.estado === "finalizada").length,
+  const updateStatus = async (id: number, estado: string, motivo_rechazo?: string) => {
+    await updateReservation(
+      id,
+      { estado, ...(motivo_rechazo?.trim() ? { motivo_rechazo: motivo_rechazo.trim() } : {}) },
+      estado === "finalizada" ? "Reservación finalizada." : "Reservación rechazada."
+    );
   };
 
-  const filteredReservations = reservations.filter((r) => {
-    const targetState = FILTER_TO_ESTADO[filter];
-    const matchesFilter = targetState === null || r.estado === targetState;
-    const searchString = `${r.nombre} ${r.id} ${r.tipo} ${r.estado}`.toLowerCase();
-    const matchesSearch = searchString.includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredReservations.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
+  const filterCount = (value: (typeof FILTERS)[number]["value"]) =>
+    value === "all" ? reservations.length : reservations.filter((item) =>
+      item.estado === value || (value === "rechazada" && item.estado === "cancelada")
+    ).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-page-transition transition-colors">
-      <AdminNavbar active="reservations" />
+    <AdminNavbar active="reservations">
+      <div className="admin-page">
+        {message && <div className="admin-alert"><Alert type={message.type} onClose={clear}>{message.text}</Alert></div>}
 
-      <main className="px-8 py-10 max-w-[1400px] mx-auto w-full">
-        {message && (
-          <div className="mb-4">
-            <Alert type={message.type} onClose={clear}>{message.text}</Alert>
+        <header className="admin-page-head">
+          <div>
+            <span className="admin-eyebrow">PANEL ADMINISTRATIVO</span>
+            <h1>Reservaciones</h1>
+            <p>Revisa las solicitudes y asigna habitaciones a los estudiantes.</p>
           </div>
-        )}
+          <button type="button" className="admin-head-action" onClick={() => navigate("/admin/reports")}>
+            <Icon name="download" size={14} /> Reportes
+          </button>
+        </header>
 
-        <div className="mb-8 space-y-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Panel administrativo</p>
-              <h1 className="mt-3 text-3xl font-bold text-slate-900">Reservaciones</h1>
-              <p className="mt-2 text-sm text-slate-600 max-w-2xl">Revisa y administra las solicitudes de reserva de los estudiantes.</p>
-              <Link
-                to="/admin/reports"
-                className="inline-flex items-center gap-1 mt-2 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+        <div className="admin-stats">
+          <div className="admin-stat"><span className="admin-stat-icon"><Icon name="users" size={16} /></span><div><strong>{counts.total}</strong><small>Total</small></div></div>
+          <div className="admin-stat"><span className="admin-stat-icon"><Icon name="clock" size={16} /></span><div><strong>{counts.pending}</strong><small>Pendientes</small></div></div>
+          <div className="admin-stat"><span className="admin-stat-icon"><Icon name="check" size={16} /></span><div><strong>{counts.accepted}</strong><small>Aceptadas</small></div></div>
+          <div className="admin-stat"><span className="admin-stat-icon"><Icon name="close" size={16} /></span><div><strong>{counts.rejected}</strong><small>Rechazadas</small></div></div>
+        </div>
+
+        <div className="admin-toolbar">
+          <div className="admin-filters" aria-label="Filtrar reservaciones">
+            {FILTERS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`admin-filter${filter === item.value ? " active" : ""}`}
+                aria-pressed={filter === item.value}
+                onClick={() => setFilter(item.value)}
               >
-                Ir a Reportes →
-              </Link>
-            </div>
-
-            {/* Buscador */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" strokeWidth={2} />
-                <label htmlFor="search-reservations" className="sr-only">Buscar reservaciones</label>
-                <input
-                  id="search-reservations"
-                  type="text"
-                  placeholder="Buscar reservaciones..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-full border border-gray-200 bg-white text-gray-900 pl-11 pr-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 shadow-sm transition"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-5">
-            {FILTERS.map((f) => (
-              <StatCard
-                key={f}
-                label={f}
-                value={counts[f]}
-                active={filter === f}
-                onClick={() => setFilter(f)}
-              />
+                {item.label}{item.value !== "all" && <span> · {filterCount(item.value)}</span>}
+              </button>
             ))}
           </div>
+          <label className="admin-search">
+            <Icon name="search" size={15} />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar estudiante..." aria-label="Buscar reservaciones" />
+          </label>
         </div>
 
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left border-separate border-spacing-y-3">
-              <thead>
-                <tr className="text-xs uppercase tracking-wider text-slate-500">
-                  <th className="px-4 py-3">ID RESERVA</th>
-                  <th className="px-4 py-3">USUARIO</th>
-                  <th className="px-4 py-3">INGRESO</th>
-                  <th className="px-4 py-3">TIPO DE CUARTO</th>
-                  <th className="px-4 py-3">PISO</th>
-                  <th className="px-4 py-3">HABITACIÓN</th>
-                  <th className="px-4 py-3">MONTO</th>
-                  <th className="px-4 py-3">ESTADO</th>
-                  <th className="px-4 py-3">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentItems.length > 0 ? (
-                  currentItems.map((r, index) => (
-                    <tr key={index} className="bg-slate-50 rounded-3xl transition hover:-translate-y-0.5">
-                      <td className="px-4 py-4 text-sm text-slate-700 font-semibold">#{r.id}</td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        <div>{r.nombre}</div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">{r.fecha_ingreso || "N/A"}</td>
-                      <td className="px-4 py-4 text-sm text-slate-700">{r.tipo}</td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        {editingId === r.id ? (
-                          <select
-                            value={editData.piso}
-                            onChange={(e) => setEditData({ ...editData, piso: e.target.value })}
-                            className="w-16 px-2 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          >
-                            <option value="" disabled>Piso</option>
-                            {[1, 2, 3].map((num) => (
-                              <option key={num} value={num.toString()}>{num}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          r.piso
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700">
-                        {editingId === r.id ? (
-                          <select
-                            value={editData.habitacion}
-                            onChange={(e) => setEditData({ ...editData, habitacion: e.target.value })}
-                            className="w-24 px-2 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          >
-                            <option value="" disabled>Cuarto</option>
-                            {Array.from({ length: 4 }, (_, i) => {
-                              const p = editData.piso || "1";
-                              const roomNum = `${p}${(i + 1).toString().padStart(2, '0')}`;
-                              return (
-                                <option key={roomNum} value={roomNum}>{roomNum}</option>
-                              );
-                            })}
-                          </select>
-                        ) : (
-                          r.habitacion
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-700 font-semibold">
-                        {editingId === r.id ? (
-                          <input
-                            type="number"
-                            value={editData.monto}
-                            onChange={(e) => setEditData({ ...editData, monto: e.target.value })}
-                            className="w-24 rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                          />
-                        ) : (
-                          `$${r.monto || "0.00"}`
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        <StatusBadge status={r.estado} />
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        <div className="flex flex-wrap gap-2">
-                          {r.estado === "pendiente" ? (
-                            editingId === r.id ? (
-                              <>
-                                <button
-                                  onClick={() => saveEdit(r.id)}
-                                  className="text-xs bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-full font-semibold transition"
-                                >
-                                  Guardar
-                                </button>
-                                <button
-                                  onClick={() => setEditingId(null)}
-                                  className="text-xs bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-full font-semibold transition"
-                                >
-                                  Cancelar
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setEditingId(r.id);
-                                    setEditData({ piso: r.piso, habitacion: r.habitacion, monto: String(r.monto) });
-                                  }}
-                                  className="text-xs bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-full font-semibold transition"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => updateStatus(r.id, "aceptada")}
-                                  className="text-xs bg-white border border-green-200 text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-full font-semibold transition"
-                                >
-                                  Aceptar
-                                </button>
-                                <button
-                                  onClick={() => setRejectingId(r.id)}
-                                  className="text-xs bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-full font-semibold transition"
-                                >
-                                  Rechazar
-                                </button>
-                              </>
-                            )
-                          ) : r.estado === "aceptada" ? (
-                            <button
-                              onClick={() => updateStatus(r.id, "finalizada")}
-                              className="text-xs bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-full font-semibold transition"
-                            >
-                              Finalizar
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-500">Sin acciones</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-16 text-center text-slate-500">
-                      No hay reservaciones para mostrar.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <section className="admin-list" aria-label="Lista de reservaciones">
+          {currentItems.length ? currentItems.map((item) => (
+            <article key={item.id} className="admin-list-row">
+              <div className="admin-person">
+                <span className="admin-person-avatar">
+                  {item.foto_perfil_url ? <img src={item.foto_perfil_url} alt="" /> : initials(item.nombre || "S")}
+                </span>
+                <div className="admin-person-copy">
+                  <strong>{item.nombre || "Estudiante"}</strong>
+                  <small>{item.tipo || "Habitación"} · {item.habitacion ? `Hab. ${item.habitacion}` : "Sin asignar"}</small>
+                </div>
+              </div>
+              <div className="admin-cell admin-hide-mobile"><span className={`admin-status ${statusClass(item.estado)}`}>{item.estado}</span></div>
+              <div className="admin-cell admin-hide-tablet"><small>INGRESO</small><strong>{formatDate(item.fecha_ingreso)}</strong></div>
+              <div className="admin-cell admin-hide-mobile"><small>MENSUAL</small><strong>{money(item.monto)}</strong></div>
+              <div className="admin-row-actions">
+                {item.estado === "pendiente" ? (
+                  <>
+                    <button className="admin-btn" type="button" onClick={() => openAssignment(item)}>Asignar</button>
+                    <button className="admin-btn danger" type="button" onClick={() => setRejecting(item.id)}>Rechazar</button>
+                  </>
+                ) : item.estado === "aceptada" ? (
+                  <button className="admin-btn secondary" type="button" onClick={() => void updateStatus(item.id, "finalizada")}>Finalizar</button>
+                ) : <span className={`admin-status ${statusClass(item.estado)}`}>{item.estado}</span>}
+              </div>
+            </article>
+          )) : (
+            <div className="admin-empty">{reservations.length ? "No hay resultados con esos filtros." : "No hay reservaciones para mostrar."}</div>
+          )}
+          {filteredReservations.length > itemsPerPage && (
+            <div className="admin-pagination">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(filteredReservations.length / itemsPerPage)}
+                totalItems={filteredReservations.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+        </section>
+      </div>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredReservations.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
+      {assignment && (
+        <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !saving) setAssignment(null);
+        }}>
+          <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="assign-title">
+            <header className="admin-modal-header">
+              <div>
+                <span className="admin-eyebrow">GESTIÓN DE RESERVACIONES</span>
+                <h2 id="assign-title">Asignar habitación</h2>
+                <p>Revisa la solicitud de {assignment.nombre} y asigna un espacio.</p>
+              </div>
+              <button type="button" className="admin-modal-close" onClick={() => setAssignment(null)} aria-label="Cerrar">×</button>
+            </header>
+            <div className="admin-modal-body admin-assignment-grid">
+              <div>
+                <section className="admin-panel">
+                  <div className="admin-person admin-assignment-person">
+                    <span className="admin-person-avatar">
+                      {assignment.foto_perfil_url ? <img src={assignment.foto_perfil_url} alt="" /> : initials(assignment.nombre || "S")}
+                    </span>
+                    <div className="admin-person-copy"><small>SOLICITANTE</small><strong>{assignment.nombre}</strong><small>{assignment.email}</small></div>
+                  </div>
+                  <div className="admin-detail-grid">
+                    <div className="admin-detail"><small>TIPO DE HABITACIÓN</small><strong>{assignment.tipo || "—"}</strong></div>
+                    <div className="admin-detail"><small>FECHA DE INGRESO</small><strong>{formatDate(assignment.fecha_ingreso)}</strong></div>
+                    <div className="admin-detail"><small>MONTO ACTUAL</small><strong>{money(assignment.monto)}</strong></div>
+                    <div className="admin-detail"><small>ESTADO</small><strong>{assignment.estado}</strong></div>
+                  </div>
+                </section>
+                <section className="admin-panel admin-room-panel">
+                  <h3>Habitaciones disponibles</h3>
+                  <label className="admin-field">
+                    <span>Piso</span>
+                    <select value={selectedFloor} onChange={(event) => { setSelectedFloor(event.target.value); setSelectedRoom(""); }}>
+                      <option value="">Selecciona un piso</option>
+                      {floors.map((floor) => <option key={floor.piso} value={String(floor.piso)}>Piso {floor.piso}</option>)}
+                    </select>
+                  </label>
+                  {roomNames.length ? (
+                    <div className="admin-room-options">
+                      {roomNames.map((room) => {
+                        const isAvailable = availableRooms.includes(room);
+                        return (
+                          <button
+                            key={room}
+                            type="button"
+                            className={`admin-room-option${selectedRoom === room ? " selected" : ""}`}
+                            disabled={!isAvailable}
+                            onClick={() => setSelectedRoom(room)}
+                          >
+                            <span>Habitación {room}</span><small>{isAvailable ? "Disponible" : "Ocupada"}</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : <p className="admin-empty">No hay habitaciones registradas en este piso.</p>}
+                </section>
+              </div>
+              <aside className="admin-panel">
+                <span className="admin-eyebrow">DECISIÓN</span>
+                <h3>Confirmar asignación</h3>
+                <p>Al confirmar, el estudiante recibirá una notificación con los datos de su habitación.</p>
+                <label className="admin-field">
+                  <span>Monto mensual (MXN)</span>
+                  <input type="number" min="1" value={amount} onChange={(event) => setAmount(Number(event.target.value))} />
+                </label>
+                <div className="admin-assignment-summary">
+                  Piso {selectedFloor || "—"} · Habitación {selectedRoom || "—"}
+                </div>
+              </aside>
+            </div>
+            <footer className="admin-modal-footer">
+              <button type="button" className="admin-btn ghost" onClick={() => setAssignment(null)} disabled={saving}>Cancelar</button>
+              <button type="button" className="admin-btn" onClick={assignRoom} disabled={saving || !availableRooms.includes(selectedRoom)}>
+                {saving ? "Guardando..." : "Confirmar asignación"}
+              </button>
+            </footer>
+          </section>
         </div>
-      </main>
+      )}
 
       <ConfirmModal
-        open={rejectingId !== null}
+        open={rejecting !== null}
         title="Rechazar reservación"
-        description="Puedes indicar un motivo de rechazo; el estudiante lo verá en su panel."
-        confirmLabel="Rechazar"
+        description="El motivo se mostrará al estudiante en su panel."
+        confirmLabel="Rechazar solicitud"
         cancelLabel="Cancelar"
         tone="danger"
-        requireInput={{
-          label: "Motivo del rechazo",
-          placeholder: "Ej: Documentación incompleta...",
-          optional: true,
+        requireInput={{ label: "Motivo del rechazo", placeholder: "Ej. Documentación incompleta", optional: true }}
+        onConfirm={(reason) => {
+          if (rejecting !== null) void updateStatus(rejecting, "rechazada", reason);
+          setRejecting(null);
         }}
-        onConfirm={handleRejectConfirm}
-        onCancel={() => setRejectingId(null)}
+        onCancel={() => setRejecting(null)}
       />
-    </div>
+    </AdminNavbar>
   );
 };
 

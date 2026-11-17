@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 
 interface User {
@@ -20,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const checkSession = async () => {
+  const checkSession = useCallback(async () => {
     try {
       const res = await fetch(`/api/session`, {
         credentials: "include",
@@ -43,10 +44,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
-    checkSession();
+    const initializeSession = () => {
+      window.setTimeout(() => {
+        void checkSession();
+      }, 0);
+    };
+
+    initializeSession();
+  }, [checkSession]);
+
+  const logout = useCallback(() => {
+    setUser(null);
+    localStorage.removeItem("token");
   }, []);
 
   // Inactivity timeout logic (5 minutes)
@@ -61,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout();
       }, 5 * 60 * 1000); // 5 minutos
     }
-  }, [user]);
+  }, [logout, user]);
 
   useEffect(() => {
     // Configurar eventos para detectar actividad
@@ -87,11 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       localStorage.setItem("token", token);
     }
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("token");
   };
 
   return (

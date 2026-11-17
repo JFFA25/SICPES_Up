@@ -1486,7 +1486,7 @@
   .sicpes-ui .mk-pwa-side {
     position: fixed;
     top: 64px;
-    bottom: 58px;
+    bottom: 0;
     left: 0;
     z-index: 45;
     display: flex;
@@ -1495,6 +1495,10 @@
     border-right: 1px solid #E8E4D7;
     border-bottom: 0;
     box-shadow: 8px 0 24px rgba(20, 50, 30, .12);
+    transform: translateX(0);
+  }
+  .sicpes-ui .mk-pwa-body.sidebar-closed .mk-pwa-side {
+    transform: translateX(-105%);
   }
 }
 .sicpes-ui .mk-payments-grid {

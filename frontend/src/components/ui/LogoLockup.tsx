@@ -2,11 +2,12 @@ import logo from "../../assets/images/SICPES_Producto.png";
 
 interface Props {
   compact?: boolean;
+  showMark?: boolean;
 }
 
-const LogoLockup = ({ compact = false }: Props) => (
+const LogoLockup = ({ compact = false, showMark = true }: Props) => (
   <span className={`mk-logo-lockup${compact ? " mk-logo-compact" : ""}`}>
-    <img className="mk-logo-img" src={logo} alt="SICPES" />
+    {showMark && <img className="mk-logo-img" src={logo} alt="" />}
     <span className="mk-logo-word">
       SICPES<small>Residencial</small>
     </span>

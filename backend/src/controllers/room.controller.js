@@ -37,10 +37,21 @@ const addRooms = (req, res) => {
 
 const deleteFloor = (req, res) => {
   const { piso } = req.params;
-  db.query("DELETE FROM tbi_habitaciones WHERE piso = ?", [piso], (err, result) => {
-    if (err) return res.status(500).json({ error: "Error al eliminar" });
-    res.json({ message: "Piso y habitaciones eliminados" });
-  });
+  db.query(
+    "SELECT COUNT(*) AS ocupadas FROM tbd_reservaciones WHERE piso = ? AND estado = 'aceptada'",
+    [piso],
+    (checkError, rows) => {
+      if (checkError) return res.status(500).json({ error: "Error al verificar las habitaciones del piso" });
+      if (Number(rows[0].ocupadas) > 0) {
+        return res.status(409).json({ error: "No se puede eliminar un piso con habitaciones asignadas" });
+      }
+
+      db.query("DELETE FROM tbi_habitaciones WHERE piso = ?", [piso], (err) => {
+        if (err) return res.status(500).json({ error: "Error al eliminar" });
+        res.json({ message: "Piso y habitaciones eliminados" });
+      });
+    }
+  );
 };
 
 module.exports = {

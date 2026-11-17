@@ -1,59 +1,69 @@
 const db = require("../database/db");
 const { readSettings, writeSettings } = require("../utils/settingsStore");
-const { notifyReservationOwner } = require("../utils/push");
-
-// OBTENER TODAS LAS RESERVACIONES (ADMIN)
-const getAllReservations = (req, res) => {
-  const sql = `
-    SELECT p.*, p.monto_pagado AS monto, u.nombre, u.email, MONTH(p.fecha_pago) AS mes, YEAR(p.fecha_pago) AS anio
-    FROM tbd_pagos p
-    JOIN tbd_reservaciones r ON p.reservacion_id = r.id
-    JOIN tbd_usuarios u ON r.usuario_id = u.id
-    ORDER BY p.fecha_pago DESC
-  `;
-
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: "Error en el servidor" });
-    res.json(results);
-  });
-};
-
-// ACTUALIZAR ESTADO DE RESERVACIÓN (ADMIN)
-const updateReservationStatus = (req, res) => {
-  const { id } = req.params;
-  const { estado, motivo_rechazo, piso, habitacion, monto } = req.body;
-
-  let sql, values;
-
-  if (estado === "aceptada" && piso && habitacion && monto) {
-    // Si se acepta, actualizar también los detalles
-    sql = "UPDATE tbd_reservaciones SET estado = ?, motivo_rechazo = ?, piso = ?, habitacion = ?, monto = ? WHERE id = ?";
-    values = [estado, motivo_rechazo || null, piso, habitacion, monto, id];
-  } else {
-    sql = "UPDATE tbd_reservaciones SET estado = ?, motivo_rechazo = ? WHERE id = ?";
-    values = [estado, motivo_rechazo || null, id];
-  }
-
-  db.query(sql, values, (err) => {
-    if (err) return res.status(500).json({ error: "Error en el servidor" });
-    res.json({ message: "Reservación actualizada" });
-  });
-};
+const { notifyReservationOwner, pushToUser } = require("../utils/push");
 
 // OBTENER TODOS LOS PAGOS (ADMIN)
 const getAllPayments = (req, res) => {
   const sql = `
-    SELECT p.*, u.nombre, u.email, MONTH(p.fecha_pago) AS mes, YEAR(p.fecha_pago) AS anio
+    SELECT p.*, p.monto_pagado AS monto,
+           u.nombre, u.email, u.foto_perfil_url, r.piso, r.habitacion
     FROM tbd_pagos p
     JOIN tbd_reservaciones r ON p.reservacion_id = r.id
     JOIN tbd_usuarios u ON r.usuario_id = u.id
-    ORDER BY p.fecha_pago DESC
+    ORDER BY p.anio DESC, p.mes DESC, p.id DESC
   `;
 
   db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: "Error en el servidor" });
     res.json(results);
   });
+};
+
+const sendPaymentReminder = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT p.reservacion_id, p.mes, p.anio, p.estado,
+              COALESCE(p.monto_calculado, p.monto_pagado, 0) AS monto,
+              r.usuario_id
+       FROM tbd_pagos p
+       JOIN tbd_reservaciones r ON p.reservacion_id = r.id
+       WHERE p.id = ?
+       LIMIT 1`,
+      [id]
+    );
+    const payment = rows[0];
+    if (!payment) return res.status(404).json({ error: "Pago no encontrado" });
+    if (String(payment.estado).toLowerCase() === "pagado") {
+      return res.status(409).json({ error: "No se puede recordar un pago que ya fue aprobado" });
+    }
+
+    const month = Number(payment.mes);
+    const year = Number(payment.anio);
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1) {
+      return res.status(409).json({ error: "El periodo de pago no es válido" });
+    }
+    const dueDate = new Date(year, month - 1, 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (String(payment.estado).toLowerCase() !== "atrasado" && dueDate >= today) {
+      return res.status(409).json({ error: "Este periodo todavía no está vencido" });
+    }
+
+    const title = "Recordatorio de pago pendiente";
+    const body = `Tienes un pago pendiente de ${month}/${year} por $${Number(payment.monto).toFixed(2)} MXN. Revisa tu cuenta.`;
+    await db.promise().query(
+      "INSERT INTO tbd_notificaciones (usuario_id, tipo, titulo, cuerpo, url) VALUES (?, ?, ?, ?, ?)",
+      [payment.usuario_id, "pago_recordatorio", title, body, "/payments"]
+    );
+    void pushToUser(payment.usuario_id, { title, body, url: "/payments", tag: "pago_recordatorio" })
+      .catch((error) => console.error("[admin] Error enviando push de recordatorio:", error.message));
+    return res.json({ message: "Recordatorio registrado en las notificaciones del estudiante." });
+  } catch (error) {
+    console.error("[admin] No se pudo enviar el recordatorio de pago:", error.message);
+    return res.status(500).json({ error: "No se pudo enviar el recordatorio de pago" });
+  }
 };
 
 // ACTUALIZAR ESTADO DE PAGO (ADMIN)
@@ -133,10 +143,9 @@ const generateMockData = (req, res) => {
 };
 
 module.exports = {
-  getAllReservations,
-  updateReservationStatus,
   getAllPayments,
   updatePaymentStatus,
+  sendPaymentReminder,
   getSettings,
   getPublicSettings,
   updateSettings,

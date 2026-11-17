@@ -12,6 +12,7 @@ import AdminReservations from "./pages/AdminReservation";
 import AdminSettings from "./pages/AdminSettings";
 import AdminPayments from "./pages/AdminPayments";
 import AdminReports from "./pages/AdminReports";
+import AdminFloors from "./pages/AdminFloors";
 import Error from "./pages/Error";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -38,6 +39,7 @@ function App() {
         <Route path="/admin/reservations" element={<AdminReservations />} />
         <Route path="/admin/payments" element={<AdminPayments />} />
         <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/floors" element={<AdminFloors />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/error" element={<Error />} />
         <Route path="/sitemap" element={<Sitemap />} />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Cropper, { type Area, type Point } from "react-easy-crop";
 import ResidentLayout from "../components/ResidentLayout";
 import Icon from "../components/ui/Icon";
 import Notice from "../components/ui/Notice";
@@ -24,6 +25,30 @@ interface ReservationSummary {
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+const createCroppedImage = (imageSrc: string, area: Area) =>
+  new Promise<Blob>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("No se pudo preparar el recorte de la imagen."));
+        return;
+      }
+
+      canvas.width = 512;
+      canvas.height = 512;
+      context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, 512, 512);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("No se pudo generar la imagen recortada."))),
+        "image/webp",
+        0.9
+      );
+    };
+    image.onerror = () => reject(new Error("No se pudo abrir la imagen seleccionada."));
+    image.src = imageSrc;
+  });
+
 const initials = (name: string) =>
   name
     .split(" ")
@@ -40,9 +65,16 @@ const Account = () => {
   const [reservation, setReservation] = useState<ReservationSummary | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
 
   useEffect(() => {
     document.title = "Mi cuenta";
@@ -100,30 +132,80 @@ const Account = () => {
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
+  useEffect(() => {
+    if (!croppedBlob) {
+      setCroppedPreviewUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(croppedBlob);
+    setCroppedPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [croppedBlob]);
+
   const handleFileSelection = (file?: File) => {
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setSelectedFile(null);
+      setCroppedBlob(null);
       if (fileInput.current) fileInput.current.value = "";
       setNotice({ type: "error", text: "Elige una imagen JPG, PNG o WebP." });
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
       setSelectedFile(null);
+      setCroppedBlob(null);
       if (fileInput.current) fileInput.current.value = "";
       setNotice({ type: "error", text: "La imagen debe pesar 3 MB o menos." });
       return;
     }
 
     setSelectedFile(file);
+    setCroppedBlob(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCropModalOpen(true);
     setNotice(null);
   };
 
+  const handleApplyCrop = async () => {
+    if (!previewUrl || !croppedAreaPixels) return;
+
+    setIsCropping(true);
+    try {
+      setCroppedBlob(await createCroppedImage(previewUrl, croppedAreaPixels));
+      setCropModalOpen(false);
+      setNotice(null);
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text: error instanceof Error ? error.message : "No se pudo recortar la imagen.",
+      });
+    } finally {
+      setIsCropping(false);
+    }
+  };
+
+  const handleCancelCrop = () => {
+    setCropModalOpen(false);
+    if (!croppedBlob) {
+      setSelectedFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedFile(null);
+    setCroppedBlob(null);
+    setCropModalOpen(false);
+    if (fileInput.current) fileInput.current.value = "";
+  };
+
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !croppedBlob) return;
 
     const formData = new FormData();
-    formData.append("avatar", selectedFile);
+    formData.append("avatar", new File([croppedBlob], "avatar.webp", { type: "image/webp" }));
     setIsUploading(true);
     setNotice(null);
 
@@ -145,6 +227,7 @@ const Account = () => {
 
       setProfile(result.user);
       setSelectedFile(null);
+      setCroppedBlob(null);
       if (fileInput.current) fileInput.current.value = "";
       setNotice({ type: "success", text: "Tu foto de perfil se actualizó correctamente." });
     } catch (error) {
@@ -157,7 +240,7 @@ const Account = () => {
     }
   };
 
-  const avatar = previewUrl || profile?.foto_perfil_url;
+  const avatar = croppedPreviewUrl || previewUrl || profile?.foto_perfil_url;
   const dateParts = reservation?.fecha_ingreso?.split("T")[0].split("-").map(Number);
   const formattedDate = dateParts?.length === 3 && dateParts.every(Number.isFinite)
     ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).toLocaleDateString("es-MX", {
@@ -215,7 +298,7 @@ const Account = () => {
                   <Icon name="upload" size={15} />
                   Elegir foto
                 </button>
-                {selectedFile && (
+                {selectedFile && croppedBlob && (
                   <>
                     <button className="mk-btn mk-primary" type="button" onClick={handleUpload} disabled={isUploading}>
                       {isUploading ? "Subiendo…" : "Guardar foto"}
@@ -223,10 +306,15 @@ const Account = () => {
                     <button
                       className="mk-account-cancel"
                       type="button"
-                      onClick={() => {
-                        setSelectedFile(null);
-                        if (fileInput.current) fileInput.current.value = "";
-                      }}
+                      onClick={() => setCropModalOpen(true)}
+                      disabled={isUploading}
+                    >
+                      Ajustar
+                    </button>
+                    <button
+                      className="mk-account-cancel"
+                      type="button"
+                      onClick={clearSelection}
                       disabled={isUploading}
                     >
                       Cancelar
@@ -295,6 +383,56 @@ const Account = () => {
           </article>
         </div>
       ) : null}
+
+      {cropModalOpen && previewUrl && (
+        <div className="mk-account-crop-backdrop" role="presentation">
+          <section className="mk-account-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="crop-title">
+            <header>
+              <div>
+                <span className="mk-eyebrow">AJUSTAR FOTO</span>
+                <h2 id="crop-title">Centra tu imagen</h2>
+                <p>Arrastra la foto y ajusta el zoom para elegir cómo se verá tu avatar.</p>
+              </div>
+              <button type="button" className="mk-account-crop-close" onClick={handleCancelCrop} aria-label="Cerrar recorte">
+                ×
+              </button>
+            </header>
+            <div className="mk-account-crop-stage">
+              <Cropper
+                image={previewUrl}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, area) => setCroppedAreaPixels(area)}
+              />
+            </div>
+            <label className="mk-account-zoom">
+              <span>Zoom</span>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.01}
+                value={zoom}
+                aria-label="Ajustar zoom de la foto"
+                onChange={(event) => setZoom(Number(event.target.value))}
+              />
+            </label>
+            <footer>
+              <button type="button" className="mk-btn mk-ghost" onClick={handleCancelCrop} disabled={isCropping}>
+                Cancelar
+              </button>
+              <button type="button" className="mk-btn mk-primary" onClick={handleApplyCrop} disabled={isCropping}>
+                {isCropping ? "Preparando…" : "Aplicar recorte"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </ResidentLayout>
   );
 };

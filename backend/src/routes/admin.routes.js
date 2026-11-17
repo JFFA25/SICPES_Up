@@ -3,9 +3,12 @@ const router = express.Router();
 const { isAdmin } = require("../middlewares/auth.middleware");
 const {
   getAllReservations,
-  updateReservationStatus,
+  updateReservationStatus
+} = require("../controllers/reservation.controller");
+const {
   getAllPayments,
   updatePaymentStatus,
+  sendPaymentReminder,
   getSettings,
   updateSettings,
   generateMockData
@@ -21,6 +24,7 @@ router.put("/reservations/:id", updateReservationStatus);
 // Rutas de pagos admin
 router.get("/payments", getAllPayments);
 router.put("/payments/:id", updatePaymentStatus);
+router.post("/payments/:id/reminder", sendPaymentReminder);
 
 // Rutas de configuraciones admin
 router.get("/settings", getSettings);

@@ -115,7 +115,7 @@ const getMyReservation = (req, res) => {
 
 const getAllReservations = (req, res) => {
   const sql = `
-    SELECT r.*, u.nombre, u.email
+    SELECT r.*, u.nombre, u.email, u.foto_perfil_url
     FROM tbd_reservaciones r
     JOIN tbd_usuarios u ON r.usuario_id = u.id
     ORDER BY r.id DESC

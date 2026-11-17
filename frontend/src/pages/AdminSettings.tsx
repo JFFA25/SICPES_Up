@@ -1,322 +1,145 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminNavbar from "../components/admin/AdminNavbar";
-import StatCard from "../components/admin/StatCard";
 import Alert from "../components/Alert";
-import ConfirmModal from "../components/ConfirmModal";
+import Icon from "../components/ui/Icon";
 import { useTimedMessage } from "../hooks/useTimedMessage";
+
+interface Settings {
+  precioIndividual: number;
+  precioCompartida: number;
+  emailAdmin: string;
+}
 
 const AdminSettings = () => {
   const navigate = useNavigate();
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<Settings>({
     precioIndividual: 2500,
     precioCompartida: 1800,
-    emailAdmin: "admin@sicpes.com"
+    emailAdmin: "admin@sicpes.com",
   });
-  const [loading, setLoading] = useState(false);
-  const { message: settingsMessage, showError: showSettingsError, showSuccess: showSettingsSuccess, clear: clearSettingsMessage } = useTimedMessage();
-
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [newFloor, setNewFloor] = useState("");
-  const [newRooms, setNewRooms] = useState("");
-  const [roomsLoading, setRoomsLoading] = useState(false);
-  const { message: roomsMessage, showError: showRoomsError, showSuccess: showRoomsSuccess, clear: clearRoomsMessage } = useTimedMessage();
-
-  // Modal de confirmación para eliminar un piso (reemplaza window.confirm)
-  const [deletingFloor, setDeletingFloor] = useState<string | null>(null);
-
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch(`/api/admin/settings`, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) navigate("/login");
-        return;
-      }
-
-      const data = await res.json();
-      setSettings(data);
-    } catch {
-      showSettingsError("No se pudieron cargar las configuraciones");
-    }
-  };
-
-  const fetchRooms = async () => {
-    try {
-      const res = await fetch(`/api/rooms`, {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        if (res.status === 401) navigate("/login");
-        return;
-      }
-
-      const data = await res.json();
-      setRooms(data.lista || []);
-    } catch {
-      showRoomsError("No se pudieron cargar los pisos y habitaciones");
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { message, showError, showSuccess, clear } = useTimedMessage();
 
   useEffect(() => {
-    fetchSettings();
-    fetchRooms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    document.title = "Configuración | Panel administrativo";
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch("/api/admin/settings", { credentials: "include" });
+        if (response.status === 401) {
+          navigate("/login");
+          return;
+        }
+        if (!response.ok) throw new Error("No se pudieron cargar las configuraciones.");
+        const data = await response.json();
+        setSettings({
+          precioIndividual: Number(data.precioIndividual) || 2500,
+          precioCompartida: Number(data.precioCompartida) || 1800,
+          emailAdmin: String(data.emailAdmin || ""),
+        });
+      } catch (error) {
+        showError(error instanceof Error ? error.message : "No se pudieron cargar las configuraciones.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchSettings();
+  }, [navigate, showError]);
 
-  const handleAddRooms = async () => {
-    if (!newFloor || !newRooms.trim()) {
-      showRoomsError("Debes indicar piso y habitaciones");
+  const saveSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (settings.precioIndividual <= 0 || settings.precioCompartida <= 0) {
+      showError("Los precios deben ser mayores a cero.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.emailAdmin.trim())) {
+      showError("Ingresa un correo de administrador válido.");
       return;
     }
 
-    setRoomsLoading(true);
-
+    setSaving(true);
     try {
-      const res = await fetch(`/api/rooms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ piso: newFloor, habitaciones: newRooms }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        showRoomsError(data.error || "Error al agregar habitaciones");
-        setRoomsLoading(false);
-        return;
-      }
-
-      showRoomsSuccess(data.message || "Piso y habitaciones agregados");
-      setNewFloor("");
-      setNewRooms("");
-      fetchRooms();
-    } catch {
-      showRoomsError("Error al agregar habitaciones");
-    }
-
-    setRoomsLoading(false);
-  };
-
-  const handleDeleteFloor = async (piso: string) => {
-    try {
-      const res = await fetch(`/api/rooms/${encodeURIComponent(piso)}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        showRoomsError(data.error || "Error al eliminar piso");
-        return;
-      }
-
-      showRoomsSuccess(data.message || "Piso eliminado");
-      fetchRooms();
-    } catch {
-      showRoomsError("Error al eliminar piso");
-    }
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-
-    try {
-      const res = await fetch(`/api/admin/settings`, {
+      const response = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ ...settings, emailAdmin: settings.emailAdmin.trim() }),
       });
-
-      if (!res.ok) {
-        showSettingsError("No se pudieron guardar las configuraciones");
-        setLoading(false);
-        return;
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "No se pudieron guardar las configuraciones.");
+      if (result.settings) {
+        setSettings({
+          precioIndividual: Number(result.settings.precioIndividual),
+          precioCompartida: Number(result.settings.precioCompartida),
+          emailAdmin: String(result.settings.emailAdmin),
+        });
       }
-
-      showSettingsSuccess("Configuraciones guardadas exitosamente");
-    } catch {
-      showSettingsError("Error al guardar configuraciones");
+      showSuccess(result.message || "Configuraciones guardadas.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "No se pudieron guardar las configuraciones.");
+    } finally {
+      setSaving(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 animate-page-transition">
-      <AdminNavbar active="settings" />
+    <AdminNavbar active="settings">
+      <div className="admin-page">
+        {message && <div className="admin-alert"><Alert type={message.type} onClose={clear}>{message.text}</Alert></div>}
 
-      <main className="px-8 py-10 max-w-[1400px] mx-auto w-full">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <header className="admin-page-head">
           <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Panel administrativo</p>
-            <h1 className="mt-3 text-3xl font-bold text-slate-900">Configuración global</h1>
-            <p className="mt-2 text-sm text-slate-600 max-w-2xl">Ajusta precios, correo de administración y parámetros generales del sistema.</p>
+            <span className="admin-eyebrow">PANEL ADMINISTRATIVO</span>
+            <h1>Configuración</h1>
+            <p>Administra los precios y los datos de contacto de SICPES.</p>
           </div>
-        </div>
+          <span className="admin-settings-badge"><Icon name="shield" size={14} /> Ajustes del sistema</span>
+        </header>
 
-        {settingsMessage && (
-          <div className="mb-6">
-            <Alert type={settingsMessage.type} onClose={clearSettingsMessage}>{settingsMessage.text}</Alert>
-          </div>
+        {loading ? (
+          <div className="admin-list"><div className="admin-empty">Cargando configuraciones...</div></div>
+        ) : (
+          <form className="admin-settings-grid" onSubmit={saveSettings}>
+            <section className="admin-panel admin-settings-panel">
+              <span className="admin-eyebrow">PRECIOS DE ALOJAMIENTO</span>
+              <h2>Tarifas mensuales</h2>
+              <p>Se muestran en las nuevas reservaciones y en la información de pagos.</p>
+              <label className="admin-field">
+                <span>Habitación individual (MXN)</span>
+                <div className="admin-input-prefix"><span>$</span><input type="number" min="1" step="1" value={settings.precioIndividual} onChange={(event) => setSettings({ ...settings, precioIndividual: Number(event.target.value) })} /></div>
+              </label>
+              <label className="admin-field">
+                <span>Habitación compartida (MXN)</span>
+                <div className="admin-input-prefix"><span>$</span><input type="number" min="1" step="1" value={settings.precioCompartida} onChange={(event) => setSettings({ ...settings, precioCompartida: Number(event.target.value) })} /></div>
+              </label>
+              <div className="admin-settings-note"><Icon name="sparkles" size={15} /> Los precios se aplican a las solicitudes nuevas.</div>
+            </section>
+
+            <div className="admin-settings-side">
+              <section className="admin-panel admin-settings-panel">
+                <span className="admin-eyebrow">CONTACTO</span>
+                <h2>Correo de administración</h2>
+                <p>Dirección para contacto y consultas relacionadas con el alojamiento.</p>
+                <label className="admin-field">
+                  <span>Correo electrónico</span>
+                  <input type="email" autoComplete="email" value={settings.emailAdmin} onChange={(event) => setSettings({ ...settings, emailAdmin: event.target.value })} required />
+                </label>
+              </section>
+              <section className="admin-panel admin-settings-info">
+                <span className="admin-settings-info-icon"><Icon name="bell" size={16} /></span>
+                <div><strong>Notificaciones del sistema</strong><p>Los avisos de reservaciones y pagos se envían automáticamente. No hay opciones de notificación manual en esta configuración.</p></div>
+              </section>
+            </div>
+
+            <div className="admin-settings-actions">
+              <button type="submit" className="admin-btn" disabled={saving}>{saving ? "Guardando..." : "Guardar cambios"}</button>
+            </div>
+          </form>
         )}
-
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
-          <StatCard label="Precio individual" value={`$${settings.precioIndividual.toLocaleString("es-MX")}`} />
-          <StatCard label="Precio compartida" value={`$${settings.precioCompartida.toLocaleString("es-MX")}`} />
-          <StatCard label="Email de contacto" value={settings.emailAdmin} />
-        </div>
-
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-700">Precio de habitación individual</p>
-              <input
-                type="number"
-                value={settings.precioIndividual}
-                onChange={(e) => setSettings({ ...settings, precioIndividual: Number(e.target.value) })}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-              />
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-700">Precio de habitación compartida</p>
-              <input
-                type="number"
-                value={settings.precioCompartida}
-                onChange={(e) => setSettings({ ...settings, precioCompartida: Number(e.target.value) })}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-              />
-            </div>
-          </div>
-
-          <div className="mt-8 space-y-3">
-            <p className="text-sm font-medium text-slate-700">Correo electrónico del administrador</p>
-            <input
-              type="email"
-              value={settings.emailAdmin}
-              onChange={(e) => setSettings({ ...settings, emailAdmin: e.target.value })}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-            />
-          </div>
-
-          <div className="mt-8 flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        </div>
-
-        <section className="mt-10 bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Pisos y habitaciones</p>
-              <h2 className="mt-3 text-2xl font-bold text-slate-900">Agregar nuevos pisos y habitaciones</h2>
-              <p className="mt-2 text-sm text-slate-600 max-w-2xl">Los datos se guardan en la tabla <span className="font-semibold">tbi_habitaciones</span>.</p>
-            </div>
-          </div>
-
-          {roomsMessage && (
-            <div className="mb-6">
-              <Alert type={roomsMessage.type} onClose={clearRoomsMessage}>{roomsMessage.text}</Alert>
-            </div>
-          )}
-
-          <div className="grid gap-6 md:grid-cols-3 mb-8">
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-slate-700">Piso</label>
-              <input
-                type="text"
-                value={newFloor}
-                onChange={(e) => setNewFloor(e.target.value)}
-                placeholder="Ej. 1"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-              />
-            </div>
-            <div className="md:col-span-2 space-y-3">
-              <label className="text-sm font-medium text-slate-700">Habitaciones</label>
-              <input
-                type="text"
-                value={newRooms}
-                onChange={(e) => setNewRooms(e.target.value)}
-                placeholder="Ej. 101, 102, 103"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-              />
-              <p className="text-sm text-slate-500">Separar con coma para agregar varias habitaciones en el mismo piso.</p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleAddRooms}
-              disabled={roomsLoading}
-              className="inline-flex items-center justify-center rounded-2xl bg-green-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {roomsLoading ? "Guardando..." : "Agregar habitaciones"}
-            </button>
-          </div>
-
-          <div className="mt-10">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Pisos existentes</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left border-separate border-spacing-y-3">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wider text-slate-500">
-                    <th className="px-4 py-3">Piso</th>
-                    <th className="px-4 py-3">Habitaciones</th>
-                    <th className="px-4 py-3">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rooms.length > 0 ? (
-                    rooms.map((row: any) => (
-                      <tr key={row.piso} className="bg-slate-50 rounded-3xl transition hover:-translate-y-0.5">
-                        <td className="px-4 py-4 text-sm text-slate-700 font-semibold">{row.piso}</td>
-                        <td className="px-4 py-4 text-sm text-slate-700">{row.habitaciones}</td>
-                        <td className="px-4 py-4 text-sm text-slate-700">
-                          <button
-                            onClick={() => setDeletingFloor(row.piso)}
-                            className="text-xs bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-full font-semibold transition"
-                          >
-                            Eliminar piso
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={3} className="px-4 py-16 text-center text-slate-500">
-                        No hay pisos registrados.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <ConfirmModal
-        open={deletingFloor !== null}
-        title="Eliminar piso"
-        description={deletingFloor ? `¿Eliminar el piso ${deletingFloor} y todas sus habitaciones? Esta acción no se puede deshacer.` : undefined}
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
-        tone="danger"
-        onConfirm={() => {
-          if (deletingFloor) handleDeleteFloor(deletingFloor);
-          setDeletingFloor(null);
-        }}
-        onCancel={() => setDeletingFloor(null)}
-      />
-    </div>
+      </div>
+    </AdminNavbar>
   );
 };
 

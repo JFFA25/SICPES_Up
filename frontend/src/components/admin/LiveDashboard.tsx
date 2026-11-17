@@ -55,8 +55,16 @@ const LiveDashboard = () => {
   }, []);
 
   useEffect(() => {
-    fetchStats();
-    intervalRef.current = setInterval(fetchStats, REFRESH_INTERVAL_MS);
+    const startPolling = () => {
+      window.setTimeout(() => {
+        void fetchStats();
+      }, 0);
+    };
+
+    startPolling();
+    intervalRef.current = window.setInterval(() => {
+      void fetchStats();
+    }, REFRESH_INTERVAL_MS);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

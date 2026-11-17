@@ -61,7 +61,7 @@ const ResidentLayout = ({ active, userName, userPhoto, children }: Props) => {
               </span>
             </button>
             <Link to="/dashboard" className="mk-brand-btn" aria-label="SICPES, ir al inicio">
-              <LogoLockup />
+              <LogoLockup showMark={false} />
             </Link>
           </div>
 

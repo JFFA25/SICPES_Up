@@ -84,10 +84,6 @@ Para robustecer la automatización de procesos, garantizar la seguridad en el ac
   <img src="/frontend/src/assets/images/colors_sicpes.png" alt="Colores" width="600"/>
 </p>
 
-<p align="center">
-  <img src="/frontend/src/assets/images/colors_admin.png" alt="Colores" width="600"/>
-</p>
-
 ## Gestión del Proyecto
 
 ### Estructura Organizacional
@@ -108,10 +104,6 @@ SICPES está contenerizado con **Docker** y desplegado en la nube, cumpliendo co
 | **Balanceo de cargas** | Gestionado automáticamente por la infraestructura de Render |
 | **Configuración de dominio** | Subdominios provistos por Render (`.onrender.com`) |
 | **Certificados de seguridad** | HTTPS/TLS automático, gestionado por Render |
-
-### Arquitectura de despliegue
-
-![Nube](/images/arquitectura_despliegue_nube_v2.png)
 
 ### Servicios desplegados
 
@@ -142,4 +134,4 @@ Esto levanta los 3 servicios en:
 | **Edgar Cabrera Velázquez** | Backend / Lógica del sistema | [@Edgar-Cbr](https://github.com/Edgar-Cbr) |
 | **Edwin Hernández Campos** | Base de datos / Estructura | [@Edwinhdzcm](https://github.com/Edwinhdzcm) |
 | **Giovany Raul Pazos Cruz** | Frontend / Interfaz | [@giova0412](https://github.com/giova0412) |
-| **Brisa Nallely Garcia Gregorio** | Pruebas / Soporte / Documentación | [@Brisgregorio](https://github.com/Brisgregorio) |
+| **Todos** | Pruebas / Soporte / Documentación | [@Todos](https://github.com) |

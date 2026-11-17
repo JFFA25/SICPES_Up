@@ -8,16 +8,45 @@ import roomIndividual from "../assets/images/room_individual.jpg";
 import roomShared from "../assets/images/room_shared.jpg";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
+interface UserSession {
+  id?: number;
+  nombre?: string;
+  foto_perfil_url?: string | null;
+}
+
+interface ReservationData {
+  estado?: string;
+  tipo?: string;
+  fecha_ingreso?: string | null;
+  habitacion?: string | number | null;
+  piso?: string | number | null;
+  motivo_rechazo?: string | null;
+}
+
+interface PaymentRecord {
+  mes?: number;
+  anio?: number;
+  estado?: string | null;
+}
+
+interface NoticeItem {
+  id: number;
+  titulo: string;
+  cuerpo: string;
+  url: string;
+  leida: number;
+}
+
 const Dashboard = () => {
 
   const navigate = useNavigate();
   const { message, showError, clear } = useTimedMessage();
 
   // USUARIO
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserSession | null>(null);
 
   // RESERVACIÓN
-  const [reservation, setReservation] = useState<any>(null);
+  const [reservation, setReservation] = useState<ReservationData | null>(null);
 
   // PAGO
   const [paymentAmount, setPaymentAmount] = useState<number>(0);
@@ -27,12 +56,12 @@ const Dashboard = () => {
   const [isProrated, setIsProrated] = useState(false);
 
   // AVISOS (bandeja de notificaciones)
-  const [notices, setNotices] = useState<{ id: number; titulo: string; cuerpo: string; url: string; leida: number }[]>([]);
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
 
   useEffect(() => {
     document.title = "Dashboard";
 
-    const calculatePayment = (res: any, targetMonth?: number, targetYear?: number) => {
+    const calculatePayment = (res: ReservationData, targetMonth?: number, targetYear?: number) => {
       const basePrice = res.tipo === "individual" ? 2000 : 1200;
       const dateStr = res.fecha_ingreso ? res.fecha_ingreso.split("T")[0] : "";
       if (!dateStr) {
@@ -102,7 +131,7 @@ const Dashboard = () => {
       }
     };
 
-    const getPaymentInfo = async (reservationData: any) => {
+    const getPaymentInfo = async (reservationData: ReservationData) => {
       try {
         const res = await fetch("/api/payment/me", {
           credentials: "include",
@@ -115,7 +144,7 @@ const Dashboard = () => {
         const currentMonth = today.getMonth() + 1;
         const currentYear = today.getFullYear();
 
-        const thisMonthPayment = payments.find((p: any) => p.mes === currentMonth && p.anio === currentYear);
+        const thisMonthPayment = payments.find((p: PaymentRecord) => p.mes === currentMonth && p.anio === currentYear);
         let targetMonth = currentMonth;
         let targetYear = currentYear;
         let targetStatus = thisMonthPayment?.estado ?? null;
@@ -123,7 +152,7 @@ const Dashboard = () => {
         if (thisMonthPayment?.estado === "pagado") {
           targetMonth = currentMonth === 12 ? 1 : currentMonth + 1;
           targetYear = currentMonth === 12 ? currentYear + 1 : currentYear;
-          const nextMonthPayment = payments.find((p: any) => p.mes === targetMonth && p.anio === targetYear);
+          const nextMonthPayment = payments.find((p: PaymentRecord) => p.mes === targetMonth && p.anio === targetYear);
           targetStatus = nextMonthPayment?.estado ?? null;
         }
 
@@ -161,7 +190,7 @@ const Dashboard = () => {
 
     fetchData();
 
-  }, [navigate]);
+  }, [navigate, showError]);
 
   // evita parpadeo
   if (!user) return null;
