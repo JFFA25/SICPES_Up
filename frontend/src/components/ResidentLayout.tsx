@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../styles/sicpes-ui.css";
 import Icon, { type IconName } from "./ui/Icon";
@@ -31,6 +32,7 @@ const initials = (name?: string) =>
 // Estructura del portal del residente (topbar + sidebar) tomada del prototipo.
 const ResidentLayout = ({ active, userName, children }: Props) => {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleLogout = async () => {
     await disablePush().catch(() => {});
@@ -42,9 +44,21 @@ const ResidentLayout = ({ active, userName, children }: Props) => {
     <div className="sicpes-ui">
       <div className="mk-app mk-pwa-app">
         <header className="mk-pwa-top">
-          <Link to="/dashboard" className="mk-brand-btn" aria-label="SICPES, ir al inicio">
-            <LogoLockup />
-          </Link>
+          <div className="mk-pwa-brand-group">
+            <button
+              type="button"
+              className="mk-menu-toggle"
+              aria-label={sidebarOpen ? "Ocultar menú de navegación" : "Mostrar menú de navegación"}
+              aria-controls="resident-navigation"
+              aria-expanded={sidebarOpen}
+              onClick={() => setSidebarOpen((open) => !open)}
+            >
+              <Icon name="menu" size={18} />
+            </button>
+            <Link to="/dashboard" className="mk-brand-btn" aria-label="SICPES, ir al inicio">
+              <LogoLockup />
+            </Link>
+          </div>
 
           <nav className="mk-pwa-links" aria-label="Navegación principal">
             {LINKS.map((l) => (
@@ -66,8 +80,8 @@ const ResidentLayout = ({ active, userName, children }: Props) => {
           </div>
         </header>
 
-        <div className="mk-pwa-body">
-          <aside className="mk-pwa-side">
+        <div className={`mk-pwa-body${sidebarOpen ? "" : " sidebar-closed"}`}>
+          <aside id="resident-navigation" className="mk-pwa-side">
             <span className="mk-side-label">RESIDENTE</span>
             {LINKS.map((l) => (
               <Link key={l.key} to={l.to} className={`mk-side-item${active === l.key ? " active" : ""}`}>

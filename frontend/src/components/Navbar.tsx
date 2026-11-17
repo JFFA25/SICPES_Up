@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
+import LogoLockup from "./ui/LogoLockup";
 
 const Navbar = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -25,28 +28,38 @@ const Navbar = () => {
   }, []);
 
   return (
-    <nav className="flex justify-between items-center px-10 py-4 bg-gray-100 shadow-sm transition-colors">
-
-      {/* Logo */}
-      <h1 className="text-xl font-bold text-green-700">SICPES</h1>
-
-      {/* Links */}
-      <div className="flex items-center gap-6 text-gray-700">
-        <Link to="/">Inicio</Link>
-        <Link to="/contact">Contacto</Link>
-        {isAdmin && (
-          <Link to="/admin/reservations" className="font-bold text-green-700">
-            Panel Admin
-          </Link>
-        )}
-        <Link to="/register">Regístrate</Link>
-        <Link to="/login">
-          <button className="border border-green-700 px-4 py-1.5 rounded-md hover:bg-green-700 hover:text-white transition">
-            Iniciar sesión
-          </button>
+    <header className="mk-home-nav">
+      <div className={`mk-home-nav-inner${menuOpen ? " menu-open" : ""}`}>
+        <Link to="/" className="mk-home-brand" aria-label="SICPES, ir al inicio">
+          <LogoLockup />
         </Link>
+
+        <button
+          type="button"
+          className="mk-home-menu-toggle"
+          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuOpen}
+          aria-controls="home-navigation"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
+        <nav id="home-navigation" className={`mk-home-nav-links${menuOpen ? " open" : ""}`} aria-label="Navegación principal">
+          <Link to="/" onClick={() => setMenuOpen(false)}>Inicio</Link>
+          <Link to="/contact" onClick={() => setMenuOpen(false)}>Contacto</Link>
+          {isAdmin && (
+            <Link to="/admin/reservations" className="admin" onClick={() => setMenuOpen(false)}>
+              Panel Admin
+            </Link>
+          )}
+          <Link to="/register" onClick={() => setMenuOpen(false)}>Regístrate</Link>
+          <Link to="/login" className="login" onClick={() => setMenuOpen(false)}>
+            Iniciar sesión
+          </Link>
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 };
 

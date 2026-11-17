@@ -311,7 +311,7 @@ const Reservation = () => {
       </header>
 
       {message && <Alert type={message.type} onClose={clear}>{message.text}</Alert>}
-      {hasReservation && <Alert type="info">Ya tienes una reservación registrada.</Alert>}
+      {hasReservation && <Alert type="info" duration={0}>Ya tienes una reservación registrada.</Alert>}
 
       <div className="mk-reservation-grid">
         <section className="mk-card mk-reservation-form-card">

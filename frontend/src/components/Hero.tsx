@@ -1,38 +1,57 @@
 import { Link } from "react-router-dom";
 import departamento from "../assets/images/departament.webp";
+import { ArrowRight, BedDouble, CreditCard, ShieldCheck } from "lucide-react";
 
 const Hero = () => {
   return (
-    <section className="flex flex-col md:flex-row items-center justify-between px-10 md:px-20 py-16 bg-gradient-to-r from-[#00b15d] to-[#007c3f] text-white min-h-[80vh]">
+    <main>
+      <section className="mk-home-hero">
+        <div className="mk-home-hero-inner">
+          <div className="mk-home-copy">
+            <span className="mk-home-eyebrow">RESIDENCIA ESTUDIANTIL SICPES</span>
+            <h1>Encuentra tu espacio ideal para <span>vivir y estudiar.</span></h1>
+            <p>
+              Explora opciones de alojamiento, administra tu reservación y consulta tus pagos
+              desde un solo lugar.
+            </p>
+            <div className="mk-home-actions">
+              <Link to="/register" className="mk-home-primary">
+                Comenzar ahora <ArrowRight size={17} />
+              </Link>
+              <Link to="/contact" className="mk-home-secondary">Conoce más</Link>
+            </div>
+            <div className="mk-home-caption">
+              <span className="mk-home-caption-dot" />
+              Un espacio pensado para acompañarte durante tus estudios
+            </div>
+          </div>
 
-      {/* TEXTO */}
-      <div className="max-w-xl mb-10 md:mb-0">
-        <h1 className="text-3xl md:text-5xl font-bold mb-6 leading-tight">
-          Encuentra tu espacio ideal <br />
-          para vivir y estudiar.
-        </h1>
+          <div className="mk-home-visual" aria-label="Edificio residencial SICPES">
+            <div className="mk-home-visual-glow" />
+            <img src={departamento} alt="Edificio de residencia estudiantil" />
+            <div className="mk-home-visual-note">
+              <span><BedDouble size={17} /></span>
+              <div><small>Tu próximo capítulo</small><strong>comienza aquí</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <p className="text-lg md:text-xl mb-8 opacity-90">
-          Explora opciones de alojamiento, administra tu renta y mantente
-          conectado con tu entorno estudiantil. Todo desde un solo lugar.
-        </p>
-
-        <Link to="/register">
-          <button className="bg-white text-green-700 font-bold text-lg px-8 py-3 rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 hover:bg-green-50 transition-all duration-300">
-            Comenzar ahora
-          </button>
-        </Link>
-      </div>
-
-      {/* IMAGEN */}
-      <div className="w-full md:w-1/2 flex justify-center">
-        <img
-          src={departamento}
-          alt="edificio"
-          className="w-[350px] md:w-[500px] lg:w-[600px] drop-shadow-2xl hover:scale-105 hover:-rotate-1 transition-all duration-500 animate-building-enter cursor-pointer"
-        />
-      </div>
-    </section>
+      <section className="mk-home-features" aria-label="Servicios de SICPES">
+        <article className="mk-home-feature">
+          <span><BedDouble size={18} /></span>
+          <div><strong>Encuentra tu espacio</strong><small>Explora opciones de habitación.</small></div>
+        </article>
+        <article className="mk-home-feature">
+          <span><ShieldCheck size={18} /></span>
+          <div><strong>Da seguimiento</strong><small>Consulta el estado de tu reservación.</small></div>
+        </article>
+        <article className="mk-home-feature">
+          <span><CreditCard size={18} /></span>
+          <div><strong>Organiza tus pagos</strong><small>Revisa cuotas e historial desde tu cuenta.</small></div>
+        </article>
+      </section>
+    </main>
   );
 };
 
