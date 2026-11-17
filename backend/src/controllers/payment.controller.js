@@ -2,6 +2,7 @@ const { createPayment, findPaymentByReservationPeriod, getPaymentById, getPaymen
 const { createQuota, findQuotaByReservationPeriod, updateQuotaStatusByReservationPeriod } = require("../models/quota.model");
 const { sendWhatsApp } = require("../utils/notifications");
 const db = require("../database/db");
+const { notifyAdmins, notifyReservationOwner } = require("../utils/push");
 
 const requestPayment = (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "No autenticado" });
@@ -112,6 +113,12 @@ const requestPayment = (req, res) => {
                   console.error("Error al solicitar pago:", err4);
                   return res.status(500).json({ error: "Error al solicitar pago" });
                 }
+                notifyAdmins({
+                  tipo: "pago_solicitado",
+                  title: "Nuevo pago por revisar",
+                  body: `${req.session.user.nombre || "Un estudiante"} registró su pago de ${mesNumber}/${anioNumber}.`,
+                  url: "/admin/payments",
+                });
                 res.json({ message: "Pago solicitado, esperando aprobación del admin" });
               }
             );
@@ -179,6 +186,13 @@ const updateStatus = (req, res) => {
         console.error("Error al actualizar pago:", err2);
         return res.status(500).json({ error: "Error al actualizar" });
       }
+
+      // Aviso push al estudiante con el resultado de su pago
+      notifyReservationOwner(payment.reservacion_id, dbStatus === "Pagado"
+        ? { tipo: "pago_confirmado", title: "Pago confirmado", body: `Tu pago de ${payment.mes}/${payment.anio} fue confirmado.`, url: "/payments" }
+        : dbStatus === "Atrasado"
+        ? { tipo: "pago_rechazado", title: "Pago no aprobado", body: `Tu pago de ${payment.mes}/${payment.anio} no fue aprobado. Revisa tu historial.`, url: "/payments" }
+        : { tipo: "pago_pendiente", title: "Pago en revisión", body: `Tu pago de ${payment.mes}/${payment.anio} sigue en revisión.`, url: "/payments" });
 
       if (normalizedStatus === "pagado" || normalizedStatus === "aprobado") {
         updateQuotaStatusByReservationPeriod(payment.reservacion_id, payment.mes, payment.anio, "pagada", async (err3) => {

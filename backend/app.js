@@ -78,6 +78,10 @@ app.get("/api/settings", adminController.getPublicSettings);
 const externalRoutes = require("./src/routes/external.routes");
 app.use("/api", externalRoutes);
 
+// NOTIFICACIONES PUSH (PWA) + bandeja de avisos
+const pushRoutes = require("./src/routes/push.routes");
+app.use("/api", pushRoutes);
+
 // CONTROL DE USUARIOS POR DEFECTO
 const createDefaultUsers = require("./src/utils/initUsers");
 createDefaultUsers();

@@ -4,6 +4,7 @@ const {
   getReservationByUser,
 } = require("../models/reservation.model");
 const { sendSms } = require("../utils/notifications");
+const { notifyAdmins, notifyReservationOwner } = require("../utils/push");
 
 
 // CREAR RESERVACIÓN
@@ -70,6 +71,14 @@ const createReservationController = (req, res) => {
               error: "Error al crear reservación",
             });
           }
+
+          // Aviso push a los administradores (sin await: no retrasa la respuesta)
+          notifyAdmins({
+            tipo: "nueva_reservacion",
+            title: "Nueva solicitud de reservación",
+            body: `${req.session.user.nombre || "Un estudiante"} solicitó el piso ${piso}, habitación ${habitacion}.`,
+            url: "/admin/reservations",
+          });
 
           res.json({
             message: "Reservación enviada correctamente y está pendiente de revisión",
@@ -197,6 +206,22 @@ const updateReservationStatus = (req, res) => {
       });
     }
 
+    // Aviso push al estudiante cuando cambia el estado de su solicitud
+    const avisos = {
+      aceptada: ["Reservación aceptada", "Tu reservación fue aceptada. Ya puedes consultar tus pagos."],
+      rechazada: ["Reservación rechazada", `Tu solicitud fue rechazada.${motivo_rechazo ? " Motivo: " + motivo_rechazo : ""}`],
+      cancelada: ["Reservación cancelada", "Tu reservación fue cancelada."],
+      finalizada: ["Reservación finalizada", "Tu reservación ha finalizado."],
+    };
+    if (estado && avisos[estado]) {
+      notifyReservationOwner(id, {
+        tipo: `reservacion_${estado}`,
+        title: avisos[estado][0],
+        body: avisos[estado][1],
+        url: "/dashboard",
+      });
+    }
+
     res.json({
       message: "Actualizado correctamente",
     });
@@ -234,4 +259,4 @@ module.exports = {
   getAllReservations,
   updateReservationStatus,
   getOccupiedRooms
-};
+};

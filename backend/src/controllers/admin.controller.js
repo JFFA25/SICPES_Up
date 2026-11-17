@@ -1,5 +1,6 @@
 const db = require("../database/db");
 const { readSettings, writeSettings } = require("../utils/settingsStore");
+const { notifyReservationOwner } = require("../utils/push");
 
 // OBTENER TODAS LAS RESERVACIONES (ADMIN)
 const getAllReservations = (req, res) => {
@@ -77,6 +78,18 @@ const updatePaymentStatus = (req, res) => {
   const sql = "UPDATE tbd_pagos SET estado = ? WHERE id = ?";
   db.query(sql, [dbEstado, id], (err) => {
     if (err) return res.status(500).json({ error: "Error en el servidor" });
+
+    // Aviso push al estudiante (pagado / rechazado) con el periodo del pago
+    if (dbEstado !== "Pendiente") {
+      db.query("SELECT reservacion_id, mes, anio FROM tbd_pagos WHERE id = ?", [id], (e2, rows) => {
+        const pago = rows && rows[0];
+        if (e2 || !pago) return;
+        notifyReservationOwner(pago.reservacion_id, dbEstado === "Pagado"
+          ? { tipo: "pago_confirmado", title: "Pago confirmado", body: `Tu pago de ${pago.mes}/${pago.anio} fue confirmado.`, url: "/payments" }
+          : { tipo: "pago_rechazado", title: "Pago no aprobado", body: `Tu pago de ${pago.mes}/${pago.anio} no fue aprobado. Revisa tu historial.`, url: "/payments" });
+      });
+    }
+
     res.json({ message: "Pago actualizado" });
   });
 };
@@ -128,4 +141,4 @@ module.exports = {
   getPublicSettings,
   updateSettings,
   generateMockData
-};
+};
