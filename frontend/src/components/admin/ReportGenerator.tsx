@@ -85,13 +85,11 @@ const ReportGenerator = () => {
   };
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="admin-report-generator relative" ref={containerRef}>
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={isGenerating}
-        className={`flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full text-sm font-semibold transition shadow-sm w-full sm:w-auto ${
-          isGenerating ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-        }`}
+        className={`admin-report-trigger flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full text-sm font-semibold transition shadow-sm w-full sm:w-auto${isGenerating ? " is-loading" : ""}`}
       >
         {isGenerating ? (
           <>
@@ -112,23 +110,19 @@ const ReportGenerator = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 sm:right-auto z-30 mt-2 w-80 rounded-2xl border border-slate-100 bg-white p-5 shadow-xl">
+        <div className="admin-report-popover absolute right-0 sm:right-auto z-30 mt-2 w-80 rounded-2xl border bg-white p-5 shadow-xl">
           <p className="text-sm font-semibold text-slate-700 mb-3">Periodo del reporte</p>
 
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setUseRange(false)}
-              className={`flex-1 px-3 py-2 rounded-full text-xs font-semibold transition ${
-                !useRange ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
-              }`}
+              className={`admin-report-period-option flex-1 px-3 py-2 rounded-full text-xs font-semibold transition${!useRange ? " is-active" : ""}`}
             >
               Todo el historial
             </button>
             <button
               onClick={() => setUseRange(true)}
-              className={`flex-1 px-3 py-2 rounded-full text-xs font-semibold transition ${
-                useRange ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
-              }`}
+              className={`admin-report-period-option flex-1 px-3 py-2 rounded-full text-xs font-semibold transition${useRange ? " is-active" : ""}`}
             >
               Rango de fechas
             </button>
@@ -146,7 +140,7 @@ const ReportGenerator = () => {
                   endDate={endDate}
                   maxDate={endDate || new Date()}
                   placeholderText="Selecciona una fecha"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="admin-report-date w-full px-3 py-2 border rounded-lg text-sm focus:outline-none"
                 />
               </div>
               <div>
@@ -160,7 +154,7 @@ const ReportGenerator = () => {
                   minDate={startDate || undefined}
                   maxDate={new Date()}
                   placeholderText="Selecciona una fecha"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="admin-report-date w-full px-3 py-2 border rounded-lg text-sm focus:outline-none"
                 />
               </div>
             </div>
@@ -169,7 +163,7 @@ const ReportGenerator = () => {
           <button
             onClick={generateReport}
             disabled={isGenerating}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold py-2.5 rounded-full transition"
+            className="admin-report-download w-full text-white text-sm font-semibold py-2.5 rounded-full transition"
           >
             {isGenerating ? "Generando..." : "Descargar PDF"}
           </button>

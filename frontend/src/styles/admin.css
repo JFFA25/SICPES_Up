@@ -2,12 +2,12 @@
   --admin-green: #287A51;
   --admin-dark: #173D2A;
   --admin-muted: #66766A;
-  min-height: 100vh;
+  min-height: calc(100vh / var(--z));
   display: flex;
   flex-direction: column;
   background: #FDFBF7;
   color: var(--admin-dark);
-  font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--sans);
 }
 .sicpes-admin *,
 .sicpes-admin *::before,
@@ -28,9 +28,9 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  min-height: 68px;
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  min-height: 64px;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 18px;
   padding: 9px 24px;
@@ -48,11 +48,7 @@
   gap: 10px;
 }
 .sicpes-admin .admin-brand {
-  gap: 9px;
   color: var(--admin-dark);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
   text-decoration: none;
 }
 .sicpes-admin .admin-brand img {
@@ -78,19 +74,20 @@
 .sicpes-admin .admin-nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
-  padding: 9px 11px;
-  border-radius: 9px;
+  padding: 8px;
+  border-radius: 8px;
   color: #56685A;
   font-size: 11px;
   font-weight: 600;
   text-decoration: none;
-  transition: background 160ms ease, color 160ms ease;
+  transition: background 160ms cubic-bezier(.22,1,.36,1), color 160ms cubic-bezier(.22,1,.36,1), transform 160ms cubic-bezier(.22,1,.36,1);
 }
 .sicpes-admin .admin-nav-link:hover {
   background: #F1F4ED;
   color: #245A3B;
+  transform: translateX(2px);
 }
 .sicpes-admin .admin-nav-link.active {
   background: #E3F0E5;
@@ -146,20 +143,20 @@
   background: #F7FAF5;
 }
 .sicpes-admin .admin-menu-toggle {
-  display: none;
+  display: grid;
 }
 .sicpes-admin .admin-workspace {
   flex: 1;
-  min-height: calc(100vh - 68px);
+  min-height: calc(100vh / var(--z) - 64px);
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr);
-  transition: grid-template-columns 220ms cubic-bezier(.22,1,.36,1);
+  grid-template-columns: 206px minmax(0, 1fr);
+  transition: grid-template-columns .28s cubic-bezier(.22,1,.36,1);
 }
 .sicpes-admin .admin-sidebar {
   position: sticky;
-  top: 68px;
+  top: 64px;
   align-self: start;
-  height: calc(100vh - 68px);
+  height: calc(100vh / var(--z) - 64px);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -167,7 +164,23 @@
   padding: 18px 12px;
   border-right: 1px solid #E8E4D7;
   background: #F4F2EA;
-  transition: opacity 180ms ease, padding 220ms ease;
+  transition: opacity .18s ease, transform .28s cubic-bezier(.22,1,.36,1), padding .28s cubic-bezier(.22,1,.36,1), border-color .28s cubic-bezier(.22,1,.36,1), visibility 0s;
+}
+.sicpes-admin .admin-workspace.sidebar-closed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+.sicpes-admin .admin-workspace.sidebar-closed .admin-sidebar {
+  padding-right: 0;
+  padding-left: 0;
+  border-right-width: 0;
+  opacity: 0;
+  transform: translateX(-12px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .28s cubic-bezier(.22,1,.36,1), padding .28s cubic-bezier(.22,1,.36,1), border-color .28s cubic-bezier(.22,1,.36,1), visibility 0s .28s;
+}
+.sicpes-admin .admin-workspace:not(.sidebar-closed) .admin-sidebar {
+  visibility: visible;
 }
 .sicpes-admin .admin-sidebar nav {
   display: flex;
@@ -187,12 +200,27 @@
 }
 .sicpes-admin .admin-main {
   min-width: 0;
-  padding: 25px clamp(18px, 2.5vw, 36px) 36px;
+  padding: 24px 28px 30px;
   animation: admin-page-in 240ms ease-out both;
 }
 .sicpes-admin .admin-page {
   width: min(100%, 1320px);
   margin: 0 auto;
+}
+.sicpes-admin .admin-page > * {
+  animation: admin-content-enter .4s cubic-bezier(.22,1,.36,1) backwards;
+}
+.sicpes-admin .admin-page > *:nth-child(2) {
+  animation-delay: .06s;
+}
+.sicpes-admin .admin-page > *:nth-child(3) {
+  animation-delay: .12s;
+}
+.sicpes-admin .admin-page > *:nth-child(4) {
+  animation-delay: .18s;
+}
+.sicpes-admin .admin-page > *:nth-child(5) {
+  animation-delay: .24s;
 }
 .sicpes-admin .admin-page-head {
   display: flex;
@@ -260,6 +288,15 @@
   border: 1px solid #E9E4D7;
   border-radius: 12px;
   background: #FFFFFF;
+  transition: transform 200ms cubic-bezier(.22,1,.36,1), box-shadow 200ms cubic-bezier(.22,1,.36,1), border-color 200ms cubic-bezier(.22,1,.36,1), background 200ms cubic-bezier(.22,1,.36,1);
+}
+.sicpes-admin .admin-stat:hover,
+.sicpes-admin .admin-panel:hover,
+.sicpes-admin .admin-floor-card:hover,
+.sicpes-admin .admin-report-card:hover {
+  transform: translateY(-2px);
+  border-color: #DCE7D9;
+  box-shadow: 0 8px 20px rgba(23,61,42,.075);
 }
 .sicpes-admin .admin-stat-icon {
   display: grid;
@@ -362,13 +399,14 @@
   gap: 12px;
   padding: 11px 13px;
   border-bottom: 1px solid #F0EDE4;
-  transition: background 160ms ease;
+  transition: background 160ms cubic-bezier(.22,1,.36,1), transform 160ms cubic-bezier(.22,1,.36,1);
 }
 .sicpes-admin .admin-list-row:last-child {
   border-bottom: 0;
 }
 .sicpes-admin .admin-list-row:hover {
   background: #FBFCF9;
+  transform: translateX(2px);
 }
 .sicpes-admin .admin-person {
   min-width: 0;
@@ -737,6 +775,7 @@
   border: 1px solid #E9E4D7;
   border-radius: 12px;
   background: #FFFFFF;
+  transition: transform 200ms cubic-bezier(.22,1,.36,1), box-shadow 200ms cubic-bezier(.22,1,.36,1), border-color 200ms cubic-bezier(.22,1,.36,1);
 }
 .sicpes-admin .admin-floor-icon {
   display: grid;
@@ -1018,6 +1057,89 @@
 .sicpes-admin .admin-report-upcoming {
   min-width: 0;
 }
+.sicpes-admin .admin-report-card {
+  transition: transform 200ms cubic-bezier(.22,1,.36,1), box-shadow 200ms cubic-bezier(.22,1,.36,1), border-color 200ms cubic-bezier(.22,1,.36,1);
+}
+.sicpes-admin .admin-report-icon {
+  background: #EAF6EC;
+  color: #287A51;
+}
+.sicpes-admin .admin-report-title {
+  color: #1D432D;
+}
+.sicpes-admin .admin-report-description,
+.sicpes-admin .admin-report-upcoming-note {
+  color: #66766A;
+}
+.sicpes-admin .admin-report-description {
+  line-height: 1.5;
+}
+.sicpes-admin .admin-report-generator {
+  z-index: 1;
+}
+.sicpes-admin .admin-report-trigger,
+.sicpes-admin .admin-report-download {
+  border: 1px solid #287A51;
+  background: #287A51;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: background 160ms cubic-bezier(.22,1,.36,1), border-color 160ms cubic-bezier(.22,1,.36,1), transform 160ms cubic-bezier(.22,1,.36,1);
+}
+.sicpes-admin .admin-report-trigger:hover:not(:disabled),
+.sicpes-admin .admin-report-download:hover:not(:disabled) {
+  border-color: #226F49;
+  background: #226F49;
+  transform: translateY(-1px);
+}
+.sicpes-admin .admin-report-trigger:disabled,
+.sicpes-admin .admin-report-download:disabled {
+  border-color: #8AB99A;
+  background: #8AB99A;
+  cursor: not-allowed;
+}
+.sicpes-admin .admin-report-trigger:focus-visible,
+.sicpes-admin .admin-report-download:focus-visible,
+.sicpes-admin .admin-report-period-option:focus-visible,
+.sicpes-admin .admin-report-date:focus-visible {
+  outline: 2px solid #2F8A5C;
+  outline-offset: 2px;
+}
+.sicpes-admin .admin-report-popover {
+  border-color: #E9E4D7;
+  color: #1D432D;
+}
+.sicpes-admin .admin-report-period-option {
+  border: 1px solid transparent;
+  background: #F4F2EA;
+  color: #56685A;
+  cursor: pointer;
+}
+.sicpes-admin .admin-report-period-option.is-active {
+  border-color: #287A51;
+  background: #287A51;
+  color: #FFFFFF;
+}
+.sicpes-admin .admin-report-date {
+  border-color: #DDD9CB;
+  background: #FCFBF6;
+  color: #173D2A;
+}
+.sicpes-admin .admin-report-date:focus {
+  border-color: #287A51;
+  box-shadow: 0 0 0 3px rgba(47,138,92,.14);
+}
+.sicpes-admin .react-datepicker__day--selected,
+.sicpes-admin .react-datepicker__day--keyboard-selected,
+.sicpes-admin .react-datepicker__day--selected:hover {
+  border-radius: 50%;
+  background: #287A51;
+  color: #FFFFFF;
+}
+.sicpes-admin .react-datepicker__day:hover {
+  border-radius: 50%;
+  background: #EAF6EC;
+  color: #1D432D;
+}
 .sicpes-admin .admin-report-upcoming {
   border-style: dashed;
   background: #F7F7F1;
@@ -1034,42 +1156,48 @@
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes admin-content-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 @keyframes admin-loading-pulse {
   to { opacity: .25; transform: scale(.65); }
 }
 @media (max-width: 1050px) {
   .sicpes-admin .admin-topbar {
-    grid-template-columns: 1fr auto;
-  }
-  .sicpes-admin .admin-top-links {
-    display: none;
+    padding-right: 14px;
+    padding-left: 14px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .sicpes-admin .admin-topbar {
-    min-height: 60px;
+    min-height: 64px;
     padding: 8px 12px;
-  }
-  .sicpes-admin .admin-menu-toggle {
-    display: grid;
   }
   .sicpes-admin .admin-user-name {
     display: none;
   }
   .sicpes-admin .admin-workspace {
-    min-height: calc(100vh - 60px);
+    min-height: calc(100vh / var(--z) - 64px);
     grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-workspace.sidebar-closed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-admin .admin-main {
+    grid-column: 1;
   }
   .sicpes-admin .admin-sidebar {
     position: fixed;
-    top: 60px;
+    grid-column: 1;
+    top: 64px;
     bottom: 0;
     left: 0;
-    z-index: 25;
-    width: 220px;
+    z-index: 45;
+    width: min(250px, 85vw);
     height: auto;
-    box-shadow: 8px 0 25px rgba(20,50,30,.08);
-    transition: transform 220ms cubic-bezier(.22,1,.36,1);
+    box-shadow: 8px 0 24px rgba(20,50,30,.12);
+    transform: translateX(0);
   }
   .sicpes-admin .admin-workspace.sidebar-closed .admin-sidebar {
     transform: translateX(-105%);

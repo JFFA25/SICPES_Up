@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import NotificationBell from "../NotificationBell";
 import Icon from "../ui/Icon";
+import LogoLockup from "../ui/LogoLockup";
 import { disablePush } from "../../utils/push";
+import "../../styles/sicpes-ui.css";
 import "../../styles/admin.css";
 
 type AdminSection = "reservations" | "payments" | "floors" | "reports" | "settings";
@@ -36,40 +38,39 @@ const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
       className={`admin-nav-link${active === key ? " active" : ""}`}
       aria-current={active === key ? "page" : undefined}
     >
-      <Icon name={iconName} size={16} />
+      <Icon name={iconName} size={17} />
       <span>{label}</span>
     </Link>
   );
 
   return (
-    <div className="sicpes-admin">
+    <div className="sicpes-ui sicpes-admin">
       <header className="admin-topbar">
         <div className="admin-brand-group">
           <button
             type="button"
-            className="admin-menu-toggle"
+            className="admin-menu-toggle mk-menu-toggle"
             aria-label={sidebarOpen ? "Ocultar menú" : "Mostrar menú"}
             aria-controls="admin-navigation"
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((open) => !open)}
           >
-            <Icon name={sidebarOpen ? "close" : "menu"} size={18} />
+            <span key={sidebarOpen ? "open" : "closed"} className="mk-menu-toggle-icon" aria-hidden="true">
+              <Icon name={sidebarOpen ? "close" : "menu"} size={18} />
+            </span>
           </button>
-          <Link to="/admin/reservations" className="admin-brand">
-            <span>SICPES<small>RESIDENCIAL</small></span>
+          <Link to="/admin/reservations" className="admin-brand mk-brand-btn" aria-label="SICPES, ir al panel administrativo">
+            <LogoLockup showMark={false} />
           </Link>
         </div>
 
-        <nav className="admin-top-links" aria-label="Navegación principal">
-          {MAIN_LINKS.map(navLink)}
-        </nav>
-
         <div className="admin-user">
-          <span className="admin-user-avatar" aria-hidden="true">AS</span>
-          <span className="admin-user-name">Admin SICPES</span>
-          <span className="admin-notifications"><NotificationBell /></span>
-          <button type="button" className="admin-logout" onClick={handleLogout} aria-label="Cerrar sesión">
+          <span className="mk-avatar mk-avatar-sm" aria-hidden="true">AS</span>
+          <span className="admin-user-name mk-user-name">Admin SICPES</span>
+          <span className="admin-notifications mk-bell"><NotificationBell /></span>
+          <button type="button" className="mk-logout" onClick={handleLogout} aria-label="Cerrar sesión">
             <Icon name="logout" size={16} />
+            <span>Salir</span>
           </button>
         </div>
       </header>

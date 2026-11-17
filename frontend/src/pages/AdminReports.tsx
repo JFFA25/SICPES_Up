@@ -47,12 +47,12 @@ const AdminReports = () => {
                 className="admin-panel admin-report-card"
               >
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-blue-50">
-                    <Icon className="w-5 h-5 text-blue-600" strokeWidth={2.25} />
+                  <span className="admin-report-icon flex items-center justify-center w-11 h-11 rounded-2xl">
+                    <Icon className="w-5 h-5" strokeWidth={2.25} />
                   </span>
-                  <h2 className="text-base font-bold text-slate-900">{report.title}</h2>
+                  <h2 className="admin-report-title text-base font-bold">{report.title}</h2>
                 </div>
-                <p className="text-sm text-slate-500 mb-5">{report.description}</p>
+                <p className="admin-report-description text-sm mb-5">{report.description}</p>
                 <ReportGenerator />
               </div>
             );
@@ -65,11 +65,11 @@ const AdminReports = () => {
                 key={report.key}
                 className="admin-panel admin-report-upcoming"
               >
-                <span className="flex items-center justify-center w-11 h-11 rounded-2xl bg-slate-100 mb-3">
-                  <Icon className="w-5 h-5 text-slate-400" strokeWidth={2.25} />
+                <span className="admin-report-icon flex items-center justify-center w-11 h-11 rounded-2xl mb-3">
+                  <Icon className="w-5 h-5" strokeWidth={2.25} />
                 </span>
-                <h2 className="text-base font-bold text-slate-500 mb-1">{report.title}</h2>
-                <p className="text-sm text-slate-400">Próximamente</p>
+                <h2 className="admin-report-title text-base font-bold mb-1">{report.title}</h2>
+                <p className="admin-report-upcoming-note text-sm">Próximamente</p>
               </div>
             );
           })}

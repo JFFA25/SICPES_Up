@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import "../styles/sicpes-ui.css";
 import Icon from "./ui/Icon";
 import LogoLockup from "./ui/LogoLockup";
-import buildingPhoto from "../assets/images/building.jpg";
+import roomPhoto from "../assets/images/room_individual.jpg";
 
 interface Props {
   children: React.ReactNode;
@@ -22,7 +22,7 @@ const AuthShell = ({ children }: Props) => (
           Consulta tu habitación, sube comprobantes y mantente al día con los avisos de SICPES.
         </p>
         <div className="mk-auth-art-visual">
-          <img className="mk-photo" src={buildingPhoto} alt="Edificio residencial SICPES" />
+          <img className="mk-photo" src={roomPhoto} alt="Habitación individual SICPES" />
         </div>
         <ul className="mk-checklist">
           <li><Icon name="check" size={15} /> Reserva y consulta tu habitación</li>

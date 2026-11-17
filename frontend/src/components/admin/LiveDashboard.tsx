@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
   Aceptadas: "#16a34a",
   Pendientes: "#eab308",
   Rechazadas: "#ef4444",
-  Finalizadas: "#3b82f6",
+  Finalizadas: "#1D5738",
   Canceladas: "#94a3b8",
 };
 
@@ -156,7 +156,7 @@ const LiveDashboard = () => {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={(value: number) => [`$${value.toLocaleString("es-MX")}`, "Recaudado"]} />
-                <Bar dataKey="total" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="total" fill="#287A51" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
