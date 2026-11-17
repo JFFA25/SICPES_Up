@@ -8,6 +8,7 @@ import { useTimedMessage } from "../hooks/useTimedMessage";
 
 interface ResidentUser {
     nombre?: string;
+    foto_perfil_url?: string | null;
 }
 
 interface ReservationData {
@@ -233,7 +234,7 @@ const Payments = () => {
                 : "Por realizar";
 
     return (
-        <ResidentLayout active="payments" userName={user?.nombre}>
+        <ResidentLayout active="payments" userName={user?.nombre} userPhoto={user?.foto_perfil_url}>
             <header className="mk-page-head">
                 <div>
                     <span className="mk-eyebrow">ESTADO DE CUENTA</span>

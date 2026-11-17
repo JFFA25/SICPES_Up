@@ -7,17 +7,19 @@ import LogoLockup from "./ui/LogoLockup";
 import NotificationBell from "./NotificationBell";
 import { disablePush } from "../utils/push";
 
-export type ResidentSection = "dashboard" | "reservation" | "payments";
+export type ResidentSection = "dashboard" | "reservation" | "payments" | "account";
 
 const LINKS: { key: ResidentSection; to: string; icon: IconName; label: string }[] = [
   { key: "dashboard", to: "/dashboard", icon: "home", label: "Inicio" },
   { key: "reservation", to: "/reservation", icon: "calendar", label: "Reservar" },
   { key: "payments", to: "/payments", icon: "card", label: "Pagos" },
+  { key: "account", to: "/account", icon: "user", label: "Mi cuenta" },
 ];
 
 interface Props {
   active: ResidentSection;
   userName?: string;
+  userPhoto?: string | null;
   children: React.ReactNode;
 }
 
@@ -31,7 +33,7 @@ const initials = (name?: string) =>
     .toUpperCase();
 
 // Estructura del portal del residente (topbar + sidebar) tomada del prototipo.
-const ResidentLayout = ({ active, userName, children }: Props) => {
+const ResidentLayout = ({ active, userName, userPhoto, children }: Props) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -64,7 +66,9 @@ const ResidentLayout = ({ active, userName, children }: Props) => {
           </div>
 
           <div className="mk-pwa-user">
-            <span className="mk-avatar mk-avatar-sm">{initials(userName)}</span>
+            <span className="mk-avatar mk-avatar-sm">
+              {userPhoto ? <img src={userPhoto} alt="" /> : initials(userName)}
+            </span>
             <span className="mk-user-name">{userName}</span>
             <span className="mk-bell"><NotificationBell /></span>
             <button type="button" className="mk-logout" onClick={handleLogout}>

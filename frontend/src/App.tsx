@@ -6,6 +6,7 @@ import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
 import Reservation from "./pages/Reservation";
 import Payments from "./pages/Payments";
+import Account from "./pages/Account";
 import Confirm from "./pages/Confirm";
 import AdminReservations from "./pages/AdminReservation";
 import AdminSettings from "./pages/AdminSettings";
@@ -32,6 +33,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/reservation" element={<Reservation />} />
         <Route path="/payments" element={<Payments />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/confirmado" element={<Confirm />} />
         <Route path="/admin/reservations" element={<AdminReservations />} />
         <Route path="/admin/payments" element={<AdminPayments />} />

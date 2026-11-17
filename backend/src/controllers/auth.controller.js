@@ -74,6 +74,7 @@ const loginUser = (req, res) => {
         nombre: user.nombre,
         email: user.email,
         rol: user.rol,
+        foto_perfil_url: user.foto_perfil_url || null,
       };
 
       req.session.save((err) => {
@@ -88,11 +89,27 @@ const loginUser = (req, res) => {
 };
 
 const getSession = (req, res) => {
-  if (!req.session.user) {
+  if (!req.session.user?.id) {
     return res.status(401).json({ error: "No autorizado" });
   }
 
-  res.json(req.session.user);
+  db.query(
+    "SELECT id, nombre, email, rol, foto_perfil_url FROM tbd_usuarios WHERE id = ? LIMIT 1",
+    [req.session.user.id],
+    (err, results) => {
+      if (err) {
+        console.error("Error cargando sesión de usuario:", err);
+        return res.status(500).json({ error: "No se pudo cargar la sesión" });
+      }
+
+      if (results.length === 0) {
+        return res.status(401).json({ error: "La cuenta ya no existe" });
+      }
+
+      req.session.user = results[0];
+      return res.json(req.session.user);
+    }
+  );
 };
 
 const registerUser = async (req, res) => {

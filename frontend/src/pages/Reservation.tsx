@@ -101,7 +101,7 @@ const Reservation = () => {
   }, []);
 
   const navigate = useNavigate();
-  const [user, setUser] = useState<{ nombre?: string } | null>(null);
+  const [user, setUser] = useState<{ nombre?: string; foto_perfil_url?: string | null } | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -301,7 +301,7 @@ const Reservation = () => {
   if (!user) return null;
 
   return (
-    <ResidentLayout active="reservation" userName={user.nombre}>
+    <ResidentLayout active="reservation" userName={user.nombre} userPhoto={user.foto_perfil_url}>
       <header className="mk-page-head">
         <div>
           <span className="mk-eyebrow">NUEVA RESERVACIÓN</span>

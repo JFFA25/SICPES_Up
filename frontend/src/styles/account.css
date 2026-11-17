@@ -1,0 +1,220 @@
+.sicpes-ui .mk-account-grid {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+.sicpes-ui .mk-account-identity {
+  grid-row: span 2;
+  overflow: hidden;
+  padding: 0;
+}
+.sicpes-ui .mk-account-cover {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  height: 118px;
+  padding: 15px;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(255,255,255,.22), transparent 26%),
+    linear-gradient(135deg, #1D5738, #2F8A5C 62%, #A6C988);
+}
+.sicpes-ui .mk-account-cover-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 12px;
+  color: #FFFFFF;
+  background: rgba(255,255,255,.12);
+}
+.sicpes-ui .mk-account-identity-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 20px;
+  text-align: center;
+}
+.sicpes-ui .mk-account-avatar {
+  width: 94px;
+  height: 94px;
+  margin-top: -47px;
+  border: 4px solid #FFFFFF;
+  background: #DDF0E2;
+  box-shadow: 0 4px 16px rgba(20,50,30,.12);
+  font-size: 24px;
+}
+.sicpes-ui .mk-account-identity-body h2 {
+  margin: 11px 0 3px;
+  color: #173D2A;
+  font-size: 18px;
+  line-height: 1.2;
+}
+.sicpes-ui .mk-account-identity-body > p {
+  margin: 0;
+  color: #66766A;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.sicpes-ui .mk-account-photo-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 15px;
+}
+.sicpes-ui .mk-account-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+.sicpes-ui .mk-account-cancel {
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: #66766A;
+  font: 600 10px var(--sans);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sicpes-ui .mk-account-cancel:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+.sicpes-ui .mk-account-hint {
+  margin-top: 8px;
+  color: #839087;
+  font-size: 9px;
+}
+.sicpes-ui .mk-account-loading {
+  color: #66766A;
+  font-size: 12px;
+}
+.sicpes-ui .mk-account-detail-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #EAF6EC;
+  color: #217048;
+}
+.sicpes-ui .mk-account-detail-list,
+.sicpes-ui .mk-account-residence-grid {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.sicpes-ui .mk-account-detail-list > div,
+.sicpes-ui .mk-account-residence-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid #F0EDE4;
+}
+.sicpes-ui .mk-account-detail-list > div:last-child,
+.sicpes-ui .mk-account-residence-grid > div:last-child {
+  border-bottom: 0;
+}
+.sicpes-ui .mk-account-detail-list dt,
+.sicpes-ui .mk-account-residence-grid dt {
+  color: #7A877D;
+  font: 700 8px var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.sicpes-ui .mk-account-detail-list dd,
+.sicpes-ui .mk-account-residence-grid dd {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #1D432D;
+  font-size: 11px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.sicpes-ui .mk-account-detail-list dd .mk-icon {
+  color: #4C7A5F;
+}
+.sicpes-ui .mk-account-readonly {
+  margin: 9px 0 0;
+  color: #7A877D;
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+.sicpes-ui .mk-account-residence-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 18px;
+}
+.sicpes-ui .mk-account-residence-grid .mk-account-residence-date {
+  grid-column: 1 / -1;
+}
+.sicpes-ui .mk-account-residence-link {
+  width: 100%;
+  margin-top: 12px;
+}
+.sicpes-ui .mk-account-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sicpes-ui .mk-account-shortcuts > .mk-eyebrow {
+  margin-bottom: 5px;
+}
+.sicpes-ui .mk-account-shortcuts a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #35533F;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+}
+.sicpes-ui .mk-account-shortcuts a:hover {
+  border-color: #E9E4D7;
+  background: #F8FAF6;
+}
+.sicpes-ui .mk-account-shortcuts a span {
+  flex: 1;
+}
+.sicpes-ui .mk-account-shortcuts a .mk-icon {
+  color: #4C7A5F;
+}
+.sicpes-ui .mk-account-photo-actions :focus-visible,
+.sicpes-ui .mk-account-shortcuts a:focus-visible {
+  outline: 2px solid #2F8A5C;
+  outline-offset: 2px;
+}
+@media (max-width: 900px) {
+  .sicpes-ui .mk-account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sicpes-ui .mk-account-identity {
+    grid-row: auto;
+  }
+}
+@media (max-width: 560px) {
+  .sicpes-ui .mk-account-identity-body {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+  .sicpes-ui .mk-account-residence-grid {
+    column-gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sicpes-ui .mk-account-shortcuts a {
+    transition: none;
+  }
+}

@@ -194,7 +194,7 @@ const Dashboard = () => {
   const photo = reservation?.tipo === "compartida" ? roomShared : roomIndividual;
 
   return (
-    <ResidentLayout active="dashboard" userName={user?.nombre}>
+    <ResidentLayout active="dashboard" userName={user?.nombre} userPhoto={user?.foto_perfil_url}>
       <div className="mk-page-head">
         <div>
           <span className="mk-eyebrow">PANEL DEL RESIDENTE</span>
