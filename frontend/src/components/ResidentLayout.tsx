@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import "../styles/sicpes-ui.css";
 import Icon, { type IconName } from "./ui/Icon";
 import LogoLockup from "./ui/LogoLockup";
@@ -53,21 +54,14 @@ const ResidentLayout = ({ active, userName, children }: Props) => {
               aria-expanded={sidebarOpen}
               onClick={() => setSidebarOpen((open) => !open)}
             >
-              <Icon name="menu" size={18} />
+              <span key={sidebarOpen ? "open" : "closed"} className="mk-menu-toggle-icon" aria-hidden="true">
+                {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+              </span>
             </button>
             <Link to="/dashboard" className="mk-brand-btn" aria-label="SICPES, ir al inicio">
               <LogoLockup />
             </Link>
           </div>
-
-          <nav className="mk-pwa-links" aria-label="Navegación principal">
-            {LINKS.map((l) => (
-              <Link key={l.key} to={l.to} className={`mk-pwa-link${active === l.key ? " active" : ""}`}>
-                <Icon name={l.icon} size={16} />
-                {l.label}
-              </Link>
-            ))}
-          </nav>
 
           <div className="mk-pwa-user">
             <span className="mk-avatar mk-avatar-sm">{initials(userName)}</span>

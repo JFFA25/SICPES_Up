@@ -32,6 +32,15 @@ const AuthShell = ({ children }: Props) => (
       </aside>
 
       <main className="mk-auth-panel">
+        <div className="mk-auth-mobile-home">
+          <Link to="/" className="mk-auth-home-link">
+            <Icon name="chevronLeft" size={15} />
+            <span>Volver al inicio</span>
+          </Link>
+          <Link to="/" aria-label="SICPES, ir al inicio" className="mk-auth-mobile-brand">
+            <LogoLockup compact />
+          </Link>
+        </div>
         <div className="mk-auth-p-card">{children}</div>
         <p className="mk-auth-p-foot">© 2025 SICPES · Residencias estudiantiles</p>
       </main>
