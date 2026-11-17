@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { disablePush, enablePush, getPushState, type PushState } from '../utils/push'
+import { HiBell, HiOutlineBell } from 'react-icons/hi2'
 
 interface Aviso {
   id: number
@@ -71,7 +72,7 @@ const NotificationBell = () => {
         aria-label="Notificaciones"
         className="relative rounded-full p-2 hover:bg-black/5"
       >
-        <span aria-hidden>🔔</span>
+        {unread > 0 ? <HiBell className="h-6 w-6" /> : <HiOutlineBell className="h-6 w-6" />}
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 rounded-full bg-red-600 px-1.5 text-xs font-bold text-white">
             {unread > 9 ? '9+' : unread}
