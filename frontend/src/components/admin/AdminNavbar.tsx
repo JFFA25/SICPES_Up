@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import icon from "../../assets/images/icon.ico";
+import NotificationBell from "../NotificationBell";
+import { disablePush } from "../../utils/push";
 
 type AdminSection = "reservations" | "payments" | "reports" | "settings";
 
@@ -20,6 +22,7 @@ const AdminNavbar = ({ active }: AdminNavbarProps) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    await disablePush().catch(() => {});
     await fetch("/api/logout", {
       method: "POST",
       credentials: "include",
@@ -51,6 +54,7 @@ const AdminNavbar = ({ active }: AdminNavbarProps) => {
       </div>
 
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <button
           onClick={handleLogout}
           className="flex items-center gap-2 px-5 py-2 border border-pink-200 text-pink-500 font-semibold rounded-xl text-sm hover:bg-pink-50 transition"
