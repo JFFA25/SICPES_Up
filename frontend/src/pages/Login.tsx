@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LoaderCircle } from "lucide-react";
-import icon from "../assets/images/icon.ico";
+import { LoaderCircle } from "lucide-react";
+import AuthShell from "../components/AuthShell";
+import Field from "../components/ui/Field";
+import Icon from "../components/ui/Icon";
+import Notice from "../components/ui/Notice";
 import { useAuth } from "../context/AuthContext";
-import Alert from "../components/Alert";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
 const Login = () => {
@@ -21,7 +23,6 @@ const Login = () => {
     password: "",
   });
 
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hasError = message?.type === "error";
@@ -104,106 +105,62 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-200 animate-page-transition transition-colors relative">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center transition-colors">
-        <div className="flex justify-center mb-4">
-          <Link to="/">
-            <img src={icon} alt="icono" className="w-16 cursor-pointer" />
-          </Link>
-        </div>
+    <AuthShell>
+      <span className="mk-eyebrow">INICIAR SESIÓN</span>
+      <h2 className="mk-auth-title">Qué gusto verte de nuevo.</h2>
+      <p className="mk-lead">Ingresa a tu cuenta para continuar con tu reservación.</p>
 
-        <h2 className="text-2xl font-bold text-green-600 mb-6">
-          Inicia sesión
-        </h2>
+      <form onSubmit={handleSubmit} noValidate>
+        <Field
+          id="login-email"
+          label="CORREO ELECTRÓNICO"
+          type="email"
+          name="email"
+          autoComplete="email"
+          placeholder="nombre@correo.com"
+          value={form.email}
+          onChange={handleChange}
+          error={hasError ? " " : undefined}
+        />
+        <Field
+          id="login-password"
+          label="CONTRASEÑA"
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          value={form.password}
+          onChange={handleChange}
+          error={hasError ? " " : undefined}
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-left" noValidate>
-          <div>
-            <label htmlFor="login-email" className="text-green-600 font-medium">
-              Correo
-            </label>
-            <input
-              id="login-email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Ingresa tu correo electrónico"
-              aria-invalid={hasError}
-              className={`w-full mt-1 px-4 py-2 border rounded-md bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${
-                hasError
-                  ? "border-red-500 focus:ring-red-400"
-                  : "border-green-500 focus:ring-green-400"
-              }`}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="login-password" className="text-green-600 font-medium">
-              Contraseña
-            </label>
-            <div className="relative">
-              <input
-                id="login-password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                autoComplete="current-password"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="Ingresa tu contraseña"
-                aria-invalid={hasError}
-                className={`w-full mt-1 px-4 py-2 pr-11 border rounded-md bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${
-                  hasError
-                    ? "border-red-500 focus:ring-red-400"
-                    : "border-green-500 focus:ring-green-400"
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={2} /> : <Eye className="w-5 h-5" strokeWidth={2} />}
-              </button>
-            </div>
-          </div>
-
-          {message && <Alert type={message.type} onClose={clear}>{message.text}</Alert>}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-md hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition"
-          >
-            {isSubmitting ? (
-              <>
-                <LoaderCircle className="w-5 h-5 animate-spin" strokeWidth={2.25} />
-                Entrando...
-              </>
-            ) : (
-              "Entrar"
-            )}
-          </button>
-        </form>
-
-        <div className="mt-4 text-sm text-gray-700">
-          <p>
-            ¿No tienes una cuenta?{" "}
-            <Link to="/register" className="text-green-600 hover:underline">
-              Regístrate
-            </Link>
-          </p>
-
-          <Link
-            to="/forgot-password"
-            className="text-green-600 mt-2 block cursor-pointer hover:underline"
-          >
+        <div className="mk-inline-between">
+          <span />
+          <Link to="/forgot-password" className="mk-text-link">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
-      </div>
-    </div>
+
+        {message && <Notice type={message.type} onClose={clear}>{message.text}</Notice>}
+
+        <button type="submit" disabled={isSubmitting} className="mk-btn mk-primary mk-block">
+          {isSubmitting ? (
+            <>
+              <LoaderCircle size={16} className="mk-spin" /> Entrando...
+            </>
+          ) : (
+            <>
+              Entrar <Icon name="arrowRight" size={17} />
+            </>
+          )}
+        </button>
+      </form>
+
+      <p className="mk-auth-note">
+        ¿No tienes cuenta?{" "}
+        <Link to="/register" className="mk-text-link">Regístrate</Link>
+      </p>
+    </AuthShell>
   );
 };
 

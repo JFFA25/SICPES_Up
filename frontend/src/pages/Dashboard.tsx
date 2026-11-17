@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import UserNavbar from "../components/UserNavbar";
-import Alert from "../components/Alert";
+import ResidentLayout from "../components/ResidentLayout";
+import Icon from "../components/ui/Icon";
+import Notice from "../components/ui/Notice";
+import StatusPill from "../components/ui/StatusPill";
+import roomIndividual from "../assets/images/room_individual.jpg";
+import roomShared from "../assets/images/room_shared.jpg";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
 const Dashboard = () => {
@@ -21,6 +25,9 @@ const Dashboard = () => {
   const [paymentYear, setPaymentYear] = useState<number | null>(null);
   const [currentMonthStatus, setCurrentMonthStatus] = useState<string | null>(null);
   const [isProrated, setIsProrated] = useState(false);
+
+  // AVISOS (bandeja de notificaciones)
+  const [notices, setNotices] = useState<{ id: number; titulo: string; cuerpo: string; url: string; leida: number }[]>([]);
 
   useEffect(() => {
     document.title = "Dashboard";
@@ -132,7 +139,19 @@ const Dashboard = () => {
       }
     };
 
+    const getNotices = async () => {
+      try {
+        const res = await fetch("/api/notifications", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setNotices(Array.isArray(data.items) ? data.items.slice(0, 3) : []);
+      } catch {
+        /* los avisos son opcionales en el panel */
+      }
+    };
+
     const fetchData = async () => {
+      getNotices();
       await getSession();
       const reservationData = await getReservation();
       if (reservationData) {
@@ -147,185 +166,159 @@ const Dashboard = () => {
   // evita parpadeo
   if (!user) return null;
 
-  const isFinalizada = reservation?.estado === "finalizada";
-  const isRechazada = reservation?.estado === "rechazada" || reservation?.estado === "cancelada";
+  const estado: string = reservation?.estado ?? "";
+  const isFinalizada = estado === "finalizada";
+  const isRechazada = estado === "rechazada" || estado === "cancelada";
+  const isActiva = Boolean(reservation) && !isFinalizada && !isRechazada;
+
+  const money = (n: number) =>
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
+  const cap = (t?: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : "—");
+  const fmtDate = (iso?: string) => {
+    const d = iso ? iso.split("T")[0].split("-") : [];
+    return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : "";
+  };
+
+  const reservaTone = estado === "aceptada" ? "ok" : estado === "pendiente" ? "rev" : isRechazada ? "no" : "pend";
+  const reservaLabel =
+    estado === "pendiente" ? "En revisión" : estado === "aceptada" ? "Aceptada" : estado === "rechazada" ? "Rechazada"
+      : estado === "cancelada" ? "Cancelada" : estado === "finalizada" ? "Finalizada" : "Sin reservación";
+
+  const payTone = currentMonthStatus === "pagado" ? "ok" : currentMonthStatus === "pendiente" ? "rev" : currentMonthStatus === "atrasado" ? "no" : "pend";
+  const payLabel =
+    currentMonthStatus === "pagado" ? "Pagado" : currentMonthStatus === "pendiente" ? "En revisión"
+      : currentMonthStatus === "atrasado" ? "Rechazado" : "Por realizar";
+
+  const showPayment = estado === "aceptada" && paymentMonth !== null;
+  const firstName = (user?.nombre || "Usuario").split(" ")[0];
+  const photo = reservation?.tipo === "compartida" ? roomShared : roomIndividual;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col animate-page-transition transition-colors">
-
-      {/* NAVBAR */}
-      <UserNavbar active="dashboard" />
-
-      {/* CONTENIDO */}
-      <div className="text-center mt-6 px-4 max-w-5xl mx-auto">
-
-        {message && (
-          <div className="mb-6 text-left">
-            <Alert type={message.type} onClose={clear}>{message.text}</Alert>
-          </div>
-        )}
-
-        {/* BIENVENIDA */}
-        <h1 className="text-3xl font-bold text-gray-700">
-          ¡Bienvenido, {user?.nombre || "Usuario"}!
-        </h1>
-
-        <p className="text-gray-500 mt-2">
-          Accede a la información de tu cuenta y tus reservaciones.
-        </p>
-
-        {/* TARJETAS */}
-        <div className="grid md:grid-cols-3 gap-6 mt-10 max-w-5xl mx-auto">
-
-          {/* RESERVACIÓN */}
-          <div className={`p-6 rounded-xl shadow text-left relative overflow-hidden transition-all duration-300 ${isFinalizada ? 'bg-gray-50 border border-gray-200' : 'bg-white'}`}>
-            {isFinalizada && (
-              <div className="absolute top-0 right-0 bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1 rounded-bl-lg tracking-wide">
-                HISTORIAL
-              </div>
-            )}
-
-            <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-              {isFinalizada ? "Última estancia" : "Tu reservación"}
-              {isFinalizada && (
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
-            </h3>
-
-            {reservation ? (
-              <>
-                <div className="space-y-1 mb-4">
-                  <p className="text-gray-600">Piso: <strong className="text-gray-800">{reservation.piso || "N/A"}</strong></p>
-                  <p className="text-gray-600">Tipo: <strong className="text-gray-800">{reservation.tipo || "N/A"}</strong></p>
-                  <p className="text-gray-600">Habitación: <strong className="text-gray-800">{reservation.habitacion || "N/A"}</strong></p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600 font-medium">
-                    Estado:{" "}
-                    <strong
-                      className={`px-3 py-1 rounded-full text-xs uppercase tracking-wide ml-1 ${reservation.estado === "pendiente"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : reservation.estado === "aceptada"
-                            ? "bg-green-100 text-green-700"
-                            : reservation.estado === "cancelada" || reservation.estado === "rechazada"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-200 text-gray-700"
-                        }`}
-                    >
-                      {reservation.estado || "N/A"}
-                    </strong>
-                  </p>
-                </div>
-
-                {(isFinalizada || isRechazada) && (
-                  <div className="mt-6 pt-5 border-t border-gray-200 text-center">
-                    {isRechazada && reservation.motivo_rechazo && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-left text-sm text-red-700">
-                        <strong className="block mb-1"> Motivo del rechazo:</strong>
-                        {reservation.motivo_rechazo}
-                      </div>
-                    )}
-                    <p className="text-sm text-gray-500 mb-4">
-                      {isFinalizada
-                        ? "Tu estancia ha concluido. Puedes solicitar una nueva habitación."
-                        : "Tu solicitud ha sido rechazada o cancelada."}
-                    </p>
-                    <Link
-                      to="/reservation"
-                      className="inline-block bg-white border border-green-600 text-green-600 hover:bg-green-50 px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full shadow-sm"
-                    >
-                      Solicitar nueva reservación
-                    </Link>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-gray-500 mb-5">No tienes ninguna reservación activa.</p>
-                <Link
-                  to="/reservation"
-                  className="bg-green-600 text-white hover:bg-green-700 px-6 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm inline-block"
-                >
-                  Solicitar habitación
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* PAGO */}
-          <div className={`p-6 rounded-xl shadow text-left transition-all duration-300 ${isFinalizada ? 'bg-gray-50 opacity-80 border border-gray-100' : 'bg-white'}`}>
-            <h3 className="font-bold text-gray-700 mb-4">
-              Próximo pago
-            </h3>
-
-            {isFinalizada || isRechazada || !reservation ? (
-              <div className="h-full flex items-center justify-center pb-8">
-                <p className="text-gray-400 text-sm italic text-center">No hay pagos pendientes.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-gray-600">Monto: <strong className="text-gray-800">{paymentMonth ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(paymentAmount) : 'N/A'}</strong></p>
-                <p className="text-gray-600">Vence: <strong className="text-gray-800">{paymentMonth ? '1ro de c/ mes' : 'N/A'}</strong></p>
-                {paymentMonth && paymentYear && (
-                  <p className="text-gray-600">Periodo: <strong className="text-gray-800">{paymentMonth}/{paymentYear}</strong></p>
-                )}
-                <p className="text-gray-600 mt-2">
-                  Estado:{" "}
-                  <strong className={`ml-1 px-2 py-1 rounded-full text-xs uppercase tracking-wide ${currentMonthStatus === 'pagado'
-                      ? 'bg-green-100 text-green-700'
-                      : currentMonthStatus === 'pendiente'
-                        ? 'bg-blue-100 text-blue-700'
-                        : currentMonthStatus === 'atrasado'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                    {currentMonthStatus === 'pagado' ? 'Pagado' : currentMonthStatus === 'pendiente' ? 'En revisión' : currentMonthStatus === 'atrasado' ? 'Rechazado' : 'Por realizar'}
-                  </strong>
-                </p>
-                {isProrated && (
-                  <div className="inline-flex items-center rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700 uppercase tracking-wide">
-                    Prorrateo aplicado
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* AVISOS */}
-          <div className="bg-white p-6 rounded-xl shadow text-left">
-            <h3 className="font-bold text-gray-700 mb-4">
-              Avisos
-            </h3>
-
-            <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-5">
-              <ol className="list-decimal ml-4 space-y-2.5 text-gray-600 text-sm marker:text-blue-500 font-medium">
-                {isFinalizada ? (
-                  <>
-                    <li>Gracias por hospedarte en residencias SICPES.</li>
-                    <li>Por favor, retira todos tus objetos personales de la habitación.</li>
-                    <li>Entrega las llaves en administración.</li>
-                  </>
-                ) : isRechazada ? (
-                  <>
-                    <li>Puedes intentar enviar una nueva solicitud de habitación.</li>
-                    <li>Revisa que los datos enviados sean correctos.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>Bienvenido al sistema SICPES.</li>
-                    <li>Recuerda hacer tu pago mensual a tiempo.</li>
-                    {reservation?.estado === "pendiente" && <li>Tu reservación está siendo evaluada.</li>}
-                  </>
-                )}
-              </ol>
-            </div>
-          </div>
+    <ResidentLayout active="dashboard" userName={user?.nombre}>
+      <div className="mk-page-head">
+        <div>
+          <span className="mk-eyebrow">PANEL DEL RESIDENTE</span>
+          <h1 className="mk-page-title">Hola, {firstName}</h1>
+          <p className="mk-lead">Este es el resumen de tu residencia y tus próximos movimientos.</p>
         </div>
       </div>
-    </div>
+
+      {message && <Notice type={message.type} onClose={clear}>{message.text}</Notice>}
+
+      <div className="mk-stat-grid">
+        <div className="mk-stat">
+          <span className="mk-stat-icon"><Icon name="bed" size={17} /></span>
+          <strong>{reservation?.habitacion || "—"}</strong>
+          <small>Habitación</small>
+        </div>
+        <div className="mk-stat">
+          <span className="mk-stat-icon"><Icon name="building" size={17} /></span>
+          <strong>{reservation?.piso || "—"}</strong>
+          <small>Piso</small>
+        </div>
+        <div className="mk-stat">
+          <span className="mk-stat-icon"><Icon name="home" size={17} /></span>
+          <strong>{cap(reservation?.tipo)}</strong>
+          <small>Tipo</small>
+        </div>
+        <div className="mk-stat">
+          <span className="mk-stat-icon"><Icon name="wallet" size={17} /></span>
+          <strong>{showPayment ? money(paymentAmount) : "—"}</strong>
+          <small>Próximo pago</small>
+        </div>
+      </div>
+
+      <div className="mk-dash-grid">
+        {/* RESERVACIÓN */}
+        <article className="mk-card mk-card-room">
+          <div className="mk-card-head">
+            <span className="mk-eyebrow">{isFinalizada ? "ÚLTIMA ESTANCIA" : "TU RESERVACIÓN"}</span>
+            {reservation && <StatusPill tone={reservaTone}>{reservaLabel}</StatusPill>}
+          </div>
+
+          {reservation ? (
+            <>
+              <div className="mk-room-strip">
+                <div className="mk-room-thumb">
+                  <img className="mk-photo" src={photo} alt={`Habitación ${cap(reservation.tipo)}`} />
+                </div>
+                <div>
+                  <strong>Residencia SICPES · {reservation.habitacion || "N/A"}</strong>
+                  <small>{cap(reservation.tipo)} · {reservation.piso || "N/A"}</small>
+                  {reservation.fecha_ingreso && (
+                    <span className="mk-mini-strong">Ingreso {fmtDate(reservation.fecha_ingreso)}</span>
+                  )}
+                </div>
+              </div>
+
+              {isRechazada && reservation.motivo_rechazo && (
+                <div className="mk-reject"><strong>Motivo del rechazo:</strong> {reservation.motivo_rechazo}</div>
+              )}
+
+              {isActiva ? (
+                <Link to="/reservation" className="mk-btn mk-secondary mk-block">
+                  Ver estado de mi petición
+                </Link>
+              ) : (
+                <Link to="/reservation" className="mk-btn mk-primary mk-block">
+                  Solicitar nueva reservación <Icon name="arrowRight" size={16} />
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="mk-empty-note" style={{ marginBottom: 12 }}>No tienes ninguna reservación activa.</p>
+              <Link to="/reservation" className="mk-btn mk-primary mk-block">
+                Solicitar habitación <Icon name="arrowRight" size={16} />
+              </Link>
+            </>
+          )}
+        </article>
+
+        {/* PRÓXIMO PAGO */}
+        <article className="mk-card mk-card-pay">
+          <div className="mk-card-head">
+            <span className="mk-eyebrow">PRÓXIMO PAGO</span>
+            {showPayment && <StatusPill tone={payTone}>{payLabel}</StatusPill>}
+          </div>
+
+          {showPayment ? (
+            <>
+              <div className="mk-amount-block">
+                <strong>{money(paymentAmount)}</strong>
+                <small>
+                  Mensualidad {paymentMonth}/{paymentYear} · vence el 1ro de cada mes
+                  {isProrated ? " · prorrateo aplicado" : ""}
+                </small>
+              </div>
+              <Link to="/payments" className="mk-btn mk-primary mk-block">
+                Ir a pagos <Icon name="arrowRight" size={16} />
+              </Link>
+            </>
+          ) : (
+            <p className="mk-empty-note">No hay pagos pendientes.</p>
+          )}
+        </article>
+      </div>
+
+      {/* AVISOS */}
+      <article className="mk-card">
+        <div className="mk-card-head">
+          <h3 className="mk-card-title">Avisos</h3>
+        </div>
+        {notices.length === 0 ? (
+          <p className="mk-notice-empty">Todavía no tienes avisos. Aquí aparecerán los cambios de tu reservación y tus pagos.</p>
+        ) : (
+          notices.map((n) => (
+            <Link key={n.id} to={n.url || "/dashboard"} className="mk-notice" style={{ fontWeight: n.leida ? 400 : 600 }}>
+              <Icon name="bell" size={16} />
+              <span>{n.titulo}{n.cuerpo ? ` — ${n.cuerpo}` : ""}</span>
+              <Icon name="chevronRight" size={15} />
+            </Link>
+          ))
+        )}
+      </article>
+    </ResidentLayout>
   );
 };
 

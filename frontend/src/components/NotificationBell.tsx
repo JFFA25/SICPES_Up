@@ -45,16 +45,6 @@ const NotificationBell = () => {
     }
   }, [load])
 
-    useEffect(() => {
-    const first = setTimeout(load, 0)
-    getPushState().then(setState)
-    const timer = setInterval(load, 60_000) // respaldo por si el push no llega (iOS, permiso negado)
-    return () => {
-      clearTimeout(first)
-      clearInterval(timer)
-    }
-  }, [load])
-
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     const onMessage = (e: MessageEvent) => {
