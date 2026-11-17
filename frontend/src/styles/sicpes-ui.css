@@ -2116,6 +2116,79 @@
 .mk-auth-mobile-home {
   display: none;
 }
+.sicpes-ui .mk-status-app {
+  min-height: calc(100vh / var(--z));
+  display: grid;
+  place-items: center;
+  padding: 28px 18px;
+  background:
+    radial-gradient(700px 340px at 12% 0%, rgba(129,199,132,.12), transparent 70%),
+    #F4F2EA;
+}
+.sicpes-ui .mk-status-card {
+  width: min(100%, 520px);
+  padding: 26px 30px 20px;
+  border: 1px solid #E9E4D7;
+  border-radius: 18px;
+  background: #FFFFFF;
+  box-shadow: 0 16px 42px rgba(23,61,42,.1);
+  animation: mk-auth-rise .5s var(--ease) both;
+}
+.sicpes-ui .mk-status-brand {
+  display: inline-flex;
+  margin-bottom: 22px;
+  text-decoration: none;
+}
+.sicpes-ui .mk-auth-status {
+  display: grid;
+  justify-items: center;
+  gap: 11px;
+  text-align: center;
+}
+.sicpes-ui .mk-auth-status .mk-lead {
+  margin: 0 0 4px;
+}
+.sicpes-ui .mk-auth-status-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+}
+.sicpes-ui .mk-auth-status-icon.success {
+  background: #E2F5E7;
+  color: #1E7A45;
+}
+.sicpes-ui .mk-auth-status-icon.error {
+  background: #FCE7E4;
+  color: #A93830;
+}
+.sicpes-ui .mk-auth-status-icon.neutral {
+  background: #EAF6EC;
+  color: #287A51;
+}
+.sicpes-ui .mk-auth-status-code {
+  color: #287A51;
+  font-size: clamp(58px, 12vw, 82px);
+  font-weight: 700;
+  line-height: .95;
+  letter-spacing: -.06em;
+}
+.sicpes-ui .mk-auth-status-actions {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+  margin-top: 6px;
+}
+@media (max-width: 560px) {
+  .sicpes-ui .mk-status-card {
+    padding: 22px 18px 16px;
+  }
+  .sicpes-ui .mk-status-brand {
+    margin-bottom: 18px;
+  }
+}
 .sicpes-ui .mk-auth-art {
   animation: mk-auth-enter-left .65s var(--ease) backwards;
 }
@@ -2261,6 +2334,7 @@
   .sicpes-ui .mk-auth-art::after,
   .sicpes-ui .mk-auth-panel,
   .sicpes-ui .mk-auth-p-card,
+  .sicpes-ui .mk-status-card,
   .sicpes-ui .mk-auth-art .mk-checklist li,
   .sicpes-ui .mk-auth-p-card form > .mk-field,
   .sicpes-ui .mk-auth-p-card .mk-form-grid > *,

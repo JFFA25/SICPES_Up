@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
-import icon from "../assets/images/icon.ico";
-import Alert from "../components/Alert";
+import AuthShell from "../components/AuthShell";
+import Field from "../components/ui/Field";
+import Icon from "../components/ui/Icon";
+import Notice from "../components/ui/Notice";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
 const VerifyAccount = () => {
@@ -13,6 +15,7 @@ const VerifyAccount = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const { message, showError, showSuccess, clear } = useTimedMessage();
+  const hasError = message?.type === "error";
 
   useEffect(() => {
     document.title = "Verificar cuenta";
@@ -66,76 +69,61 @@ const VerifyAccount = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-200 animate-page-transition transition-colors relative">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center transition-colors">
-        <div className="flex justify-center mb-4">
-          <Link to="/">
-            <img src={icon} className="w-16 cursor-pointer" alt="Logo SICPES" />
-          </Link>
-        </div>
-        <h2 className="text-2xl font-bold text-green-600 mb-2">Verifica tu cuenta</h2>
-        <p className="text-sm text-gray-600 mb-6">Ingresa el código de 6 dígitos que te enviamos por WhatsApp/SMS o, si prefieres, usa el enlace de confirmación en tu correo.</p>
-        <form onSubmit={handleSubmit} className="space-y-4 text-left" noValidate>
-          <div>
-            <label htmlFor="verify-email" className="text-green-600 font-medium">Correo</label>
-            <input
-              id="verify-email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); clear(); }}
-              className="w-full mt-1 px-4 py-2 border rounded-md border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400"
-              placeholder="tu@email.com"
-            />
-          </div>
-          <div>
-            <label htmlFor="verify-code" className="text-green-600 font-medium">Código de verificación</label>
-            <input
-              id="verify-code"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => { setCode(e.target.value); clear(); }}
-              className="w-full mt-1 px-4 py-2 border rounded-md border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400"
-              placeholder="123456"
-              maxLength={6}
-            />
-          </div>
+    <AuthShell>
+      <span className="mk-eyebrow">PROTECCIÓN DE TU CUENTA</span>
+      <h2 className="mk-auth-title">Verifica tu cuenta</h2>
+      <p className="mk-lead">Ingresa el código de 6 dígitos que enviamos por WhatsApp/SMS o confirma desde el enlace de tu correo.</p>
 
-          {message && <Alert type={message.type} onClose={clear}>{message.text}</Alert>}
+      <form onSubmit={handleSubmit} noValidate>
+        <Field
+          id="verify-email"
+          label="CORREO ELECTRÓNICO"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => { setEmail(event.target.value); clear(); }}
+          placeholder="nombre@correo.com"
+          error={hasError ? " " : undefined}
+        />
+        <Field
+          id="verify-code"
+          label="CÓDIGO DE VERIFICACIÓN"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          value={code}
+          onChange={(event) => { setCode(event.target.value); clear(); }}
+          placeholder="123456"
+          maxLength={6}
+          error={hasError ? " " : undefined}
+        />
+        {message && <Notice type={message.type} onClose={clear}>{message.text}</Notice>}
+        <button type="submit" disabled={isSubmitting} className="mk-btn mk-primary mk-block">
+          {isSubmitting ? (
+            <>
+              <LoaderCircle size={16} className="mk-spin" /> Verificando...
+            </>
+          ) : (
+            <>
+              Verificar cuenta <Icon name="arrowRight" size={17} />
+            </>
+          )}
+        </button>
+      </form>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition"
-          >
-            {isSubmitting ? (
-              <>
-                <LoaderCircle className="w-5 h-5 animate-spin" strokeWidth={2.25} />
-                Verificando...
-              </>
-            ) : (
-              "Verificar cuenta"
-            )}
-          </button>
-        </form>
-        <div className="mt-4 text-sm text-gray-600 space-y-2">
-          <button
-            type="button"
-            onClick={handleResend}
-            disabled={isResending}
-            className="inline-flex items-center gap-2 text-green-600 hover:underline disabled:opacity-60"
-          >
-            {isResending && <LoaderCircle className="w-4 h-4 animate-spin" strokeWidth={2.25} />}
-            o confirmar con correo electrónico
-          </button>
-          <div>
-            <Link to="/login" className="text-green-600 hover:underline">Volver a iniciar sesión</Link>
-          </div>
-        </div>
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={handleResend}
+        disabled={isResending || !email}
+        className="mk-btn mk-ghost mk-block"
+      >
+        {isResending && <LoaderCircle size={16} className="mk-spin" />}
+        Reenviar código por correo
+      </button>
+      <p className="mk-auth-note">
+        <Link to="/login" className="mk-text-link">Volver a iniciar sesión</Link>
+      </p>
+    </AuthShell>
   );
 };
 
