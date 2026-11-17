@@ -65,6 +65,17 @@ const listNotifications = async (req, res) => {
   }
 };
 
+const clearNotifications = async (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: "No autenticado" });
+  try {
+    await q("DELETE FROM tbd_notificaciones WHERE usuario_id = ?", [req.session.user.id]);
+    res.json({ message: "Notificaciones eliminadas" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+};
+
 const markRead = async (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "No autenticado" });
   try {
@@ -86,4 +97,4 @@ const sendTest = async (req, res) => {
   res.json({ message: "Enviada" });
 };
 
-module.exports = { getPublicKey, subscribe, unsubscribe, listNotifications, markRead, sendTest };
+module.exports = { getPublicKey, subscribe, unsubscribe, listNotifications, clearNotifications, markRead, sendTest };

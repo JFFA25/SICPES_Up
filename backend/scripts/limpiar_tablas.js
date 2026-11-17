@@ -4,7 +4,7 @@ require("dotenv").config();
 const connection = require("../src/database/db");
 
 // Se puede agregar el nombre de otra tabla si es que se agrega una nueva tabla, también se limpiará
-const TABLAS = ["tbd_pagos", "tbd_reservaciones", "tbd_cuotas"];
+const TABLAS = ["tbd_pagos", "tbd_reservaciones", "tbd_cuotas", "tbd_notificaciones"];
 
 async function limpiarTablas() {
   try {

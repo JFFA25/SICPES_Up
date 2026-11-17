@@ -9,6 +9,7 @@ router.post("/push/unsubscribe", c.unsubscribe);
 router.post("/push/test", c.sendTest);
 
 router.get("/notifications", c.listNotifications);
+router.delete("/notifications", c.clearNotifications);
 router.put("/notifications/read-all", c.markRead);
 router.put("/notifications/:id/read", c.markRead);
 

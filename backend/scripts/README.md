@@ -36,7 +36,7 @@ node scripts/generar_reporte_demo.js 20
 Si no se pasa número, genera 10 por default.
 
 ### `limpiar_tablas.js`
-Trunca `tbd_pagos`, `tbd_reservaciones` y `tbd_cuotas`. **No borra `tbd_usuarios`.**
+Trunca `tbd_pagos`, `tbd_reservaciones`, `tbd_cuotas` y `tbd_notificaciones`. **No borra `tbd_usuarios`.**
 
 **Uso:**
 ```bash
@@ -62,4 +62,4 @@ node scripts/limpiar_tablas.js
 
 **Contra producción (Render):** desde el dashboard del servicio `sicpes-backend` en Render, en el menú lateral hay una opción **"Shell"** que abre una terminal dentro del contenedor ya desplegado — ahí se pueden correr los mismos comandos directo contra la base de datos en producción.
 
-⚠️ **Ambos scripts se conectan a la base de datos que tenga configurada tu `.env` en ese momento** — no hay separación automática entre entorno local y producción. Antes de correr `limpiar_tablas.js`, confirma con un `type backend\.env` (Windows) o `cat backend/.env` (Mac/Linux) que estás apuntando a donde realmente quieres borrar datos.
+**Los scripts se conectan a la base de datos que tenga configurada tu `.env` en ese momento** — no hay separación automática entre entorno local y producción. Antes de correr un script de limpieza, confirma que estás apuntando a la base de datos correcta.
