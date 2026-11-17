@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, LoaderCircle } from "lucide-react";
-import UserNavbar from "../components/UserNavbar";
-import individualImg from "../assets/images/individual.png";
-import compartidaImg from "../assets/images/compartido.png";
+import { BedDouble, ChevronDown, LoaderCircle, UserRound, UsersRound } from "lucide-react";
+import ResidentLayout from "../components/ResidentLayout";
+import Icon from "../components/ui/Icon";
 import DatePicker, { registerLocale } from "react-datepicker";
 
 import { es } from "date-fns/locale/es";
@@ -45,6 +44,7 @@ const CustomDropdown = ({ options, value, onChange, placeholder, disabled, label
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-label={label}
+        aria-disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => {
@@ -58,20 +58,18 @@ const CustomDropdown = ({ options, value, onChange, placeholder, disabled, label
             setOpen(!open);
           }
         }}
-        className={`w-full px-4 py-3 border text-left bg-gray-50 rounded-2xl flex justify-between items-center transition ${
-          disabled ? "opacity-60 cursor-not-allowed border-gray-200" : "cursor-pointer border-gray-200 hover:border-green-300 focus:ring-2 focus:ring-green-500/50 bg-white"
-        } ${open ? "border-green-500 ring-2 ring-green-500/50" : ""}`}
+        className={`mk-reservation-select${disabled ? " disabled" : ""}${open ? " open" : ""}`}
       >
-        <span className={value ? "text-gray-900" : "text-gray-500"}>
+        <span className={value ? "" : "placeholder"}>
           {value ? options.find((o) => o.value === value)?.label : placeholder}
         </span>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${open ? "rotate-180 text-green-500" : ""}`} strokeWidth={2} />
+        <ChevronDown className={open ? "rotate-180" : ""} size={16} strokeWidth={2} />
       </div>
 
       {open && (
-        <div role="listbox" className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden animate-page-transition max-h-60 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+        <div role="listbox" className="mk-reservation-options">
           {options.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">No hay opciones</div>
+            <div className="mk-reservation-option muted">No hay opciones</div>
           ) : (
             options.map((o) => (
               <div
@@ -84,11 +82,7 @@ const CustomDropdown = ({ options, value, onChange, placeholder, disabled, label
                     setOpen(false);
                   }
                 }}
-                className={`px-4 py-3 text-sm transition ${
-                  o.disabled
-                    ? "opacity-50 cursor-not-allowed bg-slate-50 text-slate-400"
-                    : "cursor-pointer hover:bg-green-50 text-gray-700 hover:text-green-700 font-medium"
-                }`}
+                className={`mk-reservation-option${o.disabled ? " disabled" : ""}`}
               >
                 {o.label}
               </div>
@@ -107,6 +101,7 @@ const Reservation = () => {
   }, []);
 
   const navigate = useNavigate();
+  const [user, setUser] = useState<{ nombre?: string } | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -123,6 +118,22 @@ const Reservation = () => {
   const [habitacionesPorPiso, setHabitacionesPorPiso] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { message, showError, showSuccess, clear } = useTimedMessage();
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/session", { credentials: "include" });
+        if (!res.ok) {
+          navigate("/login");
+          return;
+        }
+        setUser(await res.json());
+      } catch {
+        navigate("/login");
+      }
+    };
+    fetchSession();
+  }, [navigate]);
 
   // CARGAR HABITACIONES DESDE API
   useEffect(() => {
@@ -171,6 +182,13 @@ const Reservation = () => {
       : tipo === "compartida"
         ? prices.compartida
         : 0;
+  const fechaIngreso = form.fecha_ingreso
+    ? new Date(`${form.fecha_ingreso}T12:00:00`).toLocaleDateString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+    : "—";
 
   // VERIFICAR SI YA TIENE RESERVACIÓN
   useEffect(() => {
@@ -280,122 +298,84 @@ const Reservation = () => {
     }
   };
 
+  if (!user) return null;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col animate-page-transition transition-colors">
+    <ResidentLayout active="reservation" userName={user.nombre}>
+      <header className="mk-page-head">
+        <div>
+          <span className="mk-eyebrow">NUEVA RESERVACIÓN</span>
+          <h1 className="mk-page-title">Reserva tu habitación</h1>
+          <p className="mk-lead">Elige el espacio que mejor se adapte a ti.</p>
+        </div>
+      </header>
 
-      {/* NAVBAR */}
-      <UserNavbar active="reservation" />
+      {message && <Alert type={message.type} onClose={clear}>{message.text}</Alert>}
+      {hasReservation && <Alert type="info">Ya tienes una reservación registrada.</Alert>}
 
-      {/* CONTENIDO */}
-      <div className="flex flex-col items-center px-4 py-8 max-w-5xl mx-auto w-full">
+      <div className="mk-reservation-grid">
+        <section className="mk-card mk-reservation-form-card">
+          <div className="mk-reservation-steps" aria-label="Pasos para reservar">
+            <span className="active">1&nbsp; Datos</span>
+            <span>2&nbsp; Habitación</span>
+            <span>3&nbsp; Confirmar</span>
+          </div>
 
-        <div className="bg-white w-full max-w-2xl p-6 md:p-8 rounded-2xl shadow-xl shadow-green-100/50 border border-green-50 transition-colors">
+          <form onSubmit={handleSubmit} className="mk-reservation-form" noValidate>
+            <label className="mk-field">
+              <span>FECHA DE INGRESO</span>
+              <DatePicker
+                id="reservation-fecha"
+                selected={form.fecha_ingreso ? new Date(`${form.fecha_ingreso}T12:00:00`) : null}
+                onChange={(date: Date | null) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, "0");
+                    const dd = String(date.getDate()).padStart(2, "0");
+                    setForm({ ...form, fecha_ingreso: `${yyyy}-${mm}-${dd}` });
+                  }
+                }}
+                minDate={new Date()}
+                disabled={hasReservation}
+                locale="es"
+                dateFormat="dd/MM/yyyy"
+                placeholderText="Selecciona una fecha"
+                className="mk-reservation-date"
+                wrapperClassName="w-full"
+              />
+            </label>
 
-          <h1 className="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">
-            Registro de Estudiantes
-          </h1>
-
-          <p className="text-center text-gray-500 mb-6 text-sm">
-            Completa el formulario para enviar una solicitud de cuarto.
-          </p>
-
-          {/* YA TIENE RESERVACIÓN */}
-          {hasReservation && (
-            <div className="mb-5">
-              <Alert type="info">Ya tienes una reservación registrada.</Alert>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-
-            {/* FECHA Y MONTO */}
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="reservation-fecha" className="text-sm font-semibold text-gray-700 block mb-1.5">Fecha de ingreso *</label>
-                <DatePicker
-                  id="reservation-fecha"
-                  selected={form.fecha_ingreso ? new Date(form.fecha_ingreso + "T12:00:00") : null}
-                  onChange={(date: Date | null) => {
-                    if (date) {
-                      const yyyy = date.getFullYear();
-                      const mm = String(date.getMonth() + 1).padStart(2, '0');
-                      const dd = String(date.getDate()).padStart(2, '0');
-                      setForm({ ...form, fecha_ingreso: `${yyyy}-${mm}-${dd}` });
-                    }
-                  }}
-                  minDate={new Date()}
-                  disabled={hasReservation}
-                  locale="es"
-                  dateFormat="dd/MM/yyyy"
-                  placeholderText="Selecciona una fecha"
-                  className="w-full px-4 py-3 border border-gray-200 text-gray-700 bg-gray-50 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 focus:bg-white transition cursor-pointer"
-                  wrapperClassName="w-full"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reservation-monto" className="text-sm font-semibold text-gray-700 block mb-1.5">Monto a pagar</label>
-                <input
-                  id="reservation-monto"
-                  value={monto ? `$${monto} MXN` : "Selecciona un tipo"}
-                  readOnly
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl bg-gray-100 text-gray-700 font-semibold focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* TIPO */}
-            <div>
-              <span className="text-sm font-semibold text-gray-700 block mb-2">Tipo de Habitación *</span>
-
-              <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Tipo de habitación">
-
-                <div
+            <fieldset className="mk-reservation-type">
+              <legend className="mk-reservation-label">TIPO DE HABITACIÓN</legend>
+              <div className="mk-reservation-type-options" role="radiogroup" aria-label="Tipo de habitación">
+                <button
+                  type="button"
                   role="radio"
                   aria-checked={tipo === "individual"}
-                  tabIndex={hasReservation ? -1 : 0}
-                  onClick={() => !hasReservation && setTipo("individual")}
-                  onKeyDown={(e) => {
-                    if (!hasReservation && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault();
-                      setTipo("individual");
-                    }
-                  }}
-                  className={`border-2 p-3 rounded-2xl cursor-pointer text-center transition-all ${tipo === "individual" ? "border-green-500 bg-green-50/50 shadow-sm" : "border-gray-100 hover:border-gray-200"
-                    } ${hasReservation && "opacity-50 cursor-not-allowed"}`}
+                  disabled={hasReservation}
+                  onClick={() => setTipo("individual")}
+                  className={`mk-reservation-type-option${tipo === "individual" ? " selected" : ""}`}
                 >
-                  <img src={individualImg} alt="" className="w-12 mx-auto mb-1.5 opacity-80" />
-                  <p className="font-bold text-gray-800 text-sm">Individual</p>
-                  <p className="text-xs text-gray-500">Solo para ti</p>
-                </div>
-
-                <div
+                  <UserRound size={18} />
+                  <span><strong>Individual</strong><small>${prices.individual.toLocaleString("es-MX")} / mes</small></span>
+                </button>
+                <button
+                  type="button"
                   role="radio"
                   aria-checked={tipo === "compartida"}
-                  tabIndex={hasReservation ? -1 : 0}
-                  onClick={() => !hasReservation && setTipo("compartida")}
-                  onKeyDown={(e) => {
-                    if (!hasReservation && (e.key === "Enter" || e.key === " ")) {
-                      e.preventDefault();
-                      setTipo("compartida");
-                    }
-                  }}
-                  className={`border-2 p-3 rounded-2xl cursor-pointer text-center transition-all ${tipo === "compartida" ? "border-green-500 bg-green-50/50 shadow-sm" : "border-gray-100 hover:border-gray-200"
-                    } ${hasReservation && "opacity-50 cursor-not-allowed"}`}
+                  disabled={hasReservation}
+                  onClick={() => setTipo("compartida")}
+                  className={`mk-reservation-type-option${tipo === "compartida" ? " selected" : ""}`}
                 >
-                  <img src={compartidaImg} alt="" className="w-12 mx-auto mb-1.5 opacity-80" />
-                  <p className="font-bold text-gray-800 text-sm">Compartida</p>
-                  <p className="text-xs text-gray-500">2-6 estudiantes</p>
-                </div>
-
+                  <UsersRound size={18} />
+                  <span><strong>Compartida</strong><small>${prices.compartida.toLocaleString("es-MX")} / mes</small></span>
+                </button>
               </div>
-            </div>
+            </fieldset>
 
-            {/* SELECTS */}
-            <div className="grid md:grid-cols-2 gap-3">
-
-              {/* PISO */}
-              <div className="relative">
+            <div className="mk-reservation-fields">
+              <div className="mk-field">
+                <span>PISO</span>
                 <CustomDropdown
                   label="Piso"
                   options={Object.keys(habitacionesPorPiso).sort().map((pisoNum) => ({
@@ -403,76 +383,78 @@ const Reservation = () => {
                     label: `Piso ${pisoNum}`,
                   }))}
                   value={form.piso}
-                  onChange={(val) => {
-                    setForm({ ...form, piso: val, habitacion: "" });
-                  }}
+                  onChange={(val) => setForm({ ...form, piso: val, habitacion: "" })}
                   placeholder="Selecciona un piso"
                   disabled={hasReservation}
                 />
               </div>
 
-              {/* HABITACIÓN */}
-              <div className="relative">
+              <div className="mk-field">
+                <span>HABITACIÓN</span>
                 <CustomDropdown
                   label="Habitación"
                   options={
                     form.piso
                       ? (habitacionesPorPiso[form.piso] || []).map((hab) => {
-                        const isOccupied = occupiedRooms
-                          .map((r) => String(r))
-                          .includes(String(hab));
+                        const isOccupied = occupiedRooms.map(String).includes(String(hab));
                         return {
                           value: hab,
                           label: isOccupied ? `Habitación ${hab} (Ocupada)` : `Habitación ${hab}`,
-                          disabled: isOccupied
+                          disabled: isOccupied,
                         };
                       })
                       : []
                   }
                   value={form.habitacion}
-                  onChange={(val) => {
-                    setForm({ ...form, habitacion: val });
-                  }}
+                  onChange={(val) => setForm({ ...form, habitacion: val })}
                   placeholder={form.piso ? "Selecciona una habitación" : "Primero selecciona un piso"}
                   disabled={!form.piso || hasReservation}
                 />
               </div>
-
             </div>
 
-            {/* MENSAJE GENERAL */}
             {form.piso && occupiedRooms.length > 0 && (
-              <p className="text-yellow-600 text-xs mt-1 italic">
-                Las habitaciones marcadas como "ocupadas" no estarán disponibles para reservar.
+              <p className="mk-reservation-hint">
+                Las habitaciones marcadas como ocupadas no estarán disponibles para reservar.
               </p>
             )}
 
-            {/* MENSAJES */}
-            {message && <Alert type={message.type} onClose={clear}>{message.text}</Alert>}
-
-            {/* BOTÓN */}
-            <button
-              type="submit"
-              disabled={hasReservation || isSubmitting}
-              className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white transition-all shadow-md focus:ring-4 focus:ring-green-500/30 ${hasReservation || isSubmitting
-                ? "bg-gray-400 cursor-not-allowed shadow-none"
-                : "bg-green-600 hover:bg-green-700 hover:-translate-y-0.5"
-                }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <LoaderCircle className="w-5 h-5 animate-spin" strokeWidth={2.25} />
-                  Enviando...
-                </>
-              ) : (
-                "Confirmar Reservación"
-              )}
-            </button>
-
+            <div className="mk-reservation-actions">
+              <button
+                type="submit"
+                disabled={hasReservation || isSubmitting}
+                className="mk-btn mk-primary"
+              >
+                {isSubmitting ? (
+                  <><LoaderCircle className="mk-spin" size={15} /> Enviando...</>
+                ) : (
+                  <>Reservar <Icon name="arrowRight" size={15} /></>
+                )}
+              </button>
+            </div>
           </form>
-        </div>
+        </section>
+
+        <aside className="mk-card mk-reservation-summary">
+          <span className="mk-eyebrow">RESUMEN</span>
+          <div className="mk-reservation-image-placeholder" aria-hidden="true" />
+          <h2>{form.habitacion ? `Habitación ${form.habitacion}` : "Tu habitación"}</h2>
+          <p className="mk-reservation-summary-meta">
+            {tipo ? (tipo === "individual" ? "Individual" : "Compartida") : "Tipo sin seleccionar"}
+            {form.piso ? ` · Piso ${form.piso}` : ""}
+          </p>
+          <div className="mk-reservation-summary-lines">
+            <div><span>Fecha de ingreso</span><strong>{fechaIngreso}</strong></div>
+            <div><span>Renta mensual</span><strong>{monto ? `$${monto.toLocaleString("es-MX")}` : "—"}</strong></div>
+            <div className="total"><span>Total al reservar</span><strong>{monto ? `$${monto.toLocaleString("es-MX")}` : "—"}</strong></div>
+          </div>
+          <div className="mk-reservation-note">
+            <BedDouble size={15} />
+            <span>La asignación final se confirma al terminar el registro.</span>
+          </div>
+        </aside>
       </div>
-    </div>
+    </ResidentLayout>
   );
 };
 
