@@ -150,7 +150,10 @@ const Payments = () => {
             if (res.ok) {
                 setCurrentMonthStatus("pendiente");
                 const pRes = await fetch(`/api/payment/me`, { credentials: "include" });
-                if (pRes.ok) setPayments(await pRes.json());
+                if (pRes.ok) {
+                    const nuevos = await pRes.json();
+                    setPayments(nuevos.map((p: any) => ({ ...p, mes: Number(p.mes), anio: Number(p.anio), estado: String(p.estado || "").toLowerCase() })));
+                }
             } else {
                 const errorData = await res.json().catch(() => ({ error: "Error desconocido" }));
                 console.error("Solicitud de pago fallida:", errorData);
@@ -231,6 +234,8 @@ const Payments = () => {
                                         <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">Pagado</span>
                                     ) : currentMonthStatus === "pendiente" ? (
                                         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">En revisión</span>
+                                    ) : currentMonthStatus === "atrasado" ? (
+                                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">Rechazado</span>
                                     ) : (
                                         <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">Por realizar</span>
                                     )}
@@ -242,9 +247,15 @@ const Payments = () => {
                                     </div>
                                 )}
 
-                                {!currentMonthStatus ? (
+                                {currentMonthStatus === "atrasado" && (
+                                    <p className="text-sm text-red-600 text-center mt-4">
+                                        Tu pago fue rechazado. Puedes volver a intentarlo.
+                                    </p>
+                                )}
+
+                                {!currentMonthStatus || currentMonthStatus === "atrasado" ? (
                                     <button onClick={handleRequestPayment} className="w-full mt-6 bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 hover:-translate-y-0.5 transition-all shadow-md focus:ring-4 focus:ring-green-500/30">
-                                        Proceder al Pago
+                                        {currentMonthStatus === "atrasado" ? "Reenviar pago" : "Proceder al Pago"}
                                     </button>
                                 ) : (
                                     <button disabled className="w-full mt-6 bg-gray-100 text-gray-400 font-semibold py-3 rounded-xl transition-all shadow-none cursor-not-allowed border border-gray-200">

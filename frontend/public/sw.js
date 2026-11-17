@@ -57,13 +57,19 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'SICPES', {
-      body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      tag: data.tag, // avisos del mismo tipo se reemplazan en vez de apilarse
-      data: { url: data.url || '/dashboard' },
-    })
+    Promise.all([
+      self.registration.showNotification(data.title || 'SICPES', {
+        body: data.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        tag: data.tag, // avisos del mismo tipo se reemplazan en vez de apilarse
+        data: { url: data.url || '/dashboard' },
+      }),
+      // Avisar a las ventanas abiertas para que la campana se actualice al instante
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+        list.forEach((client) => client.postMessage({ type: 'push-received' }))
+      }),
+    ])
   )
 })
 

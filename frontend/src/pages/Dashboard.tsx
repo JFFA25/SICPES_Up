@@ -278,9 +278,11 @@ const Dashboard = () => {
                       ? 'bg-green-100 text-green-700'
                       : currentMonthStatus === 'pendiente'
                         ? 'bg-blue-100 text-blue-700'
-                        : 'bg-yellow-100 text-yellow-700'
+                        : currentMonthStatus === 'atrasado'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-yellow-100 text-yellow-700'
                     }`}>
-                    {currentMonthStatus === 'pagado' ? 'Pagado' : currentMonthStatus === 'pendiente' ? 'En revisión' : 'Por realizar'}
+                    {currentMonthStatus === 'pagado' ? 'Pagado' : currentMonthStatus === 'pendiente' ? 'En revisión' : currentMonthStatus === 'atrasado' ? 'Rechazado' : 'Por realizar'}
                   </strong>
                 </p>
                 {isProrated && (

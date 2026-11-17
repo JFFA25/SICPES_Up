@@ -21,6 +21,17 @@ const createPayment = (data, callback) => {
   db.query(sql, params, callback);
 };
 
+// Reenvío de un pago rechazado (estado "Atrasado"): se reutiliza el mismo registro del periodo
+// y vuelve a quedar "Pendiente" para que el admin lo revise otra vez.
+const resubmitPayment = (id, data, callback) => {
+  const sql = `
+    UPDATE tbd_pagos
+    SET estado = 'Pendiente', monto_pagado = ?, monto_calculado = ?, fecha_pago = ?, tipo_pago = ?, fecha_generada = ?
+    WHERE id = ?
+  `;
+  db.query(sql, [data.monto, data.monto_calculado ?? data.monto, data.fecha_pago, data.tipo_pago || "mensual", new Date(), id], callback);
+};
+
 const findPaymentByReservationPeriod = (reservacion_id, mes, anio, callback) => {
   const sql = `
     SELECT *
@@ -71,4 +82,4 @@ const updatePaymentStatus = (id, estado, callback) => {
   db.query(sql, [estado, id], callback);
 };
 
-module.exports = { createPayment, findPaymentByReservationPeriod, getPaymentById, getPaymentsByUser, getAllPaymentsAdmin, updatePaymentStatus };
+module.exports = { createPayment, resubmitPayment, findPaymentByReservationPeriod, getPaymentById, getPaymentsByUser, getAllPaymentsAdmin, updatePaymentStatus };

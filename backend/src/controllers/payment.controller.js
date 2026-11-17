@@ -1,4 +1,4 @@
-const { createPayment, findPaymentByReservationPeriod, getPaymentById, getPaymentsByUser, getAllPaymentsAdmin, updatePaymentStatus } = require("../models/payment.model");
+const { createPayment, resubmitPayment, findPaymentByReservationPeriod, getPaymentById, getPaymentsByUser, getAllPaymentsAdmin, updatePaymentStatus } = require("../models/payment.model");
 const { createQuota, findQuotaByReservationPeriod, updateQuotaStatusByReservationPeriod } = require("../models/quota.model");
 const { sendWhatsApp } = require("../utils/notifications");
 const db = require("../database/db");
@@ -58,10 +58,11 @@ const requestPayment = (req, res) => {
       // La regla de negocio solicitada para cobrar por semana de llegada (1=300, 2=600, 3=900, 4=1200)
       const montoProrrateado = (basePrice / 4) * weekIndex;
 
-      // Consultar si es la primera vez que ests usuario paga históricamente 
+      // Consultar si es la primera vez que ests usuario paga históricamente
+      // (se excluye el periodo actual: si reenvía un pago rechazado, sigue siendo su primer pago)
       db.query(
-        `SELECT COUNT(*) AS pagosPrevios FROM tbd_pagos WHERE reservacion_id IN (SELECT id FROM tbd_reservaciones WHERE usuario_id = ?)`,
-        [reservation.usuario_id],
+        `SELECT COUNT(*) AS pagosPrevios FROM tbd_pagos WHERE NOT (mes = ? AND anio = ?) AND reservacion_id IN (SELECT id FROM tbd_reservaciones WHERE usuario_id = ?)`,
+        [mesNumber, anioNumber, reservation.usuario_id],
         (errPagos, resultPagos) => {
           if (errPagos) return res.status(500).json({ error: "Error verificando historial" });
 
@@ -77,9 +78,12 @@ const requestPayment = (req, res) => {
           return res.status(500).json({ error: "Error interno" });
         }
 
-        if (existing && existing.length > 0) {
+        // Si el pago de ese periodo fue rechazado (estado "Atrasado") se permite enviarlo de nuevo
+        const previous = existing && existing[0];
+        if (previous && previous.estado !== "Atrasado") {
           return res.status(400).json({ error: "Ya existe un pago para ese periodo" });
         }
+        const isRetry = Boolean(previous);
 
         const quotaData = {
           reservacion_id,
@@ -98,30 +102,33 @@ const requestPayment = (req, res) => {
           }
 
           const createPaymentRecord = () => {
-            createPayment(
-              {
-                reservacion_id,
-                monto,
-                monto_calculado: montoCalculado,
-                fecha_pago: formattedFechaPago,
-                mes: mesNumber,
-                anio: anioNumber,
-                tipo_pago,
-              },
-              (err4) => {
+            const paymentData = {
+              reservacion_id,
+              monto,
+              monto_calculado: montoCalculado,
+              fecha_pago: formattedFechaPago,
+              mes: mesNumber,
+              anio: anioNumber,
+              tipo_pago,
+            };
+            const saveCallback = (err4) => {
                 if (err4) {
                   console.error("Error al solicitar pago:", err4);
                   return res.status(500).json({ error: "Error al solicitar pago" });
                 }
                 notifyAdmins({
                   tipo: "pago_solicitado",
-                  title: "Nuevo pago por revisar",
-                  body: `${req.session.user.nombre || "Un estudiante"} registró su pago de ${mesNumber}/${anioNumber}.`,
+                  title: isRetry ? "Pago enviado de nuevo" : "Nuevo pago por revisar",
+                  body: `${req.session.user.nombre || "Un estudiante"} ${isRetry ? "volvió a enviar" : "registró"} su pago de ${mesNumber}/${anioNumber}.`,
                   url: "/admin/payments",
                 });
                 res.json({ message: "Pago solicitado, esperando aprobación del admin" });
-              }
-            );
+              };
+            if (isRetry) {
+              resubmitPayment(previous.id, paymentData, saveCallback);
+            } else {
+              createPayment(paymentData, saveCallback);
+            }
           };
 
           if (!quotaRows || quotaRows.length === 0) {
