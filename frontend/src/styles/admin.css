@@ -1177,6 +1177,10 @@
     min-height: 64px;
     padding: 8px 12px;
   }
+  .sicpes-admin .admin-menu-toggle {
+    width: 44px;
+    height: 44px;
+  }
   .sicpes-admin .admin-user-name {
     display: none;
   }
@@ -1198,7 +1202,8 @@
     left: 0;
     z-index: 45;
     width: min(250px, 85vw);
-    height: auto;
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
     box-shadow: 8px 0 24px rgba(20,50,30,.12);
     transform: translateX(0);
   }
@@ -1208,10 +1213,16 @@
     z-index: 44;
     display: block;
     border: 0;
-    background: rgba(17, 35, 24, .12);
+    background: rgba(17, 35, 24, .2);
+    touch-action: manipulation;
   }
   .sicpes-admin .admin-workspace.sidebar-closed .admin-sidebar {
     transform: translateX(-105%);
+  }
+  .sicpes-admin .admin-nav-link {
+    min-height: 44px;
+    padding: 10px 9px;
+    touch-action: manipulation;
   }
   .sicpes-admin .admin-main {
     padding: 19px 13px 28px;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import "../styles/sicpes-ui.css";
@@ -38,6 +38,26 @@ const ResidentLayout = ({ active, userName, userPhoto, children }: Props) => {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === "undefined" || !window.matchMedia?.("(max-width: 900px)").matches
   );
+
+  useEffect(() => {
+    const mobileViewport = window.matchMedia("(max-width: 900px)");
+    const syncSidebar = () => setSidebarOpen(!mobileViewport.matches);
+    mobileViewport.addEventListener("change", syncSidebar);
+    return () => mobileViewport.removeEventListener("change", syncSidebar);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarOpen || !window.matchMedia("(max-width: 900px)").matches) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [sidebarOpen]);
+
+  const closeMobileSidebar = () => {
+    if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
+  };
 
   const handleLogout = async () => {
     await disablePush().catch(() => {});
@@ -81,17 +101,25 @@ const ResidentLayout = ({ active, userName, userPhoto, children }: Props) => {
         </header>
 
         <div className={`mk-pwa-body${sidebarOpen ? "" : " sidebar-closed"}`}>
+          {sidebarOpen && (
+            <button
+              type="button"
+              className="mk-pwa-sidebar-backdrop"
+              aria-label="Cerrar menú de navegación"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
           <aside id="resident-navigation" className="mk-pwa-side">
             <span className="mk-side-label">RESIDENTE</span>
             {LINKS.map((l) => (
-              <Link key={l.key} to={l.to} className={`mk-side-item${active === l.key ? " active" : ""}`}>
+              <Link key={l.key} to={l.to} className={`mk-side-item${active === l.key ? " active" : ""}`} onClick={closeMobileSidebar}>
                 <Icon name={l.icon} size={17} />
                 <span>{l.label}</span>
               </Link>
             ))}
             <div className="mk-side-help">
               <span className="mk-side-label">AYUDA</span>
-              <Link to="/contact" className="mk-side-item">
+              <Link to="/contact" className="mk-side-item" onClick={closeMobileSidebar}>
                 <Icon name="shield" size={17} />
                 <span>Soporte SICPES</span>
               </Link>

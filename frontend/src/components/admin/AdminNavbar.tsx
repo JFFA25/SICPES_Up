@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import NotificationBell from "../NotificationBell";
 import Icon from "../ui/Icon";
@@ -24,8 +24,24 @@ interface AdminNavbarProps {
 const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(
-    () => !window.matchMedia("(max-width: 900px)").matches
+    () => typeof window === "undefined" || !window.matchMedia?.("(max-width: 900px)").matches
   );
+
+  useEffect(() => {
+    const mobileViewport = window.matchMedia("(max-width: 900px)");
+    const syncSidebar = () => setSidebarOpen(!mobileViewport.matches);
+    mobileViewport.addEventListener("change", syncSidebar);
+    return () => mobileViewport.removeEventListener("change", syncSidebar);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarOpen || !window.matchMedia("(max-width: 900px)").matches) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [sidebarOpen]);
 
   const closeMobileSidebar = () => {
     if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
