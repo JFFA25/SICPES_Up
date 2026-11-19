@@ -4,8 +4,8 @@ const createPayment = (data, callback) => {
   const fechaPago = data.fecha_pago || new Date().toISOString().slice(0, 10);
   const sql = `
     INSERT INTO tbd_pagos
-      (reservacion_id, monto_pagado, monto_calculado, fecha_pago, mes, anio, tipo_pago, fecha_generada, estado)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (reservacion_id, monto_pagado, monto_calculado, fecha_pago, mes, anio, tipo_pago, fecha_generada, estado, comprobante_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const params = [
     data.reservacion_id,
@@ -17,6 +17,7 @@ const createPayment = (data, callback) => {
     data.tipo_pago || "mensual",
     new Date(),
     "Pendiente",
+    data.comprobante_url || null,
   ];
   db.query(sql, params, callback);
 };
@@ -26,10 +27,11 @@ const createPayment = (data, callback) => {
 const resubmitPayment = (id, data, callback) => {
   const sql = `
     UPDATE tbd_pagos
-    SET estado = 'Pendiente', monto_pagado = ?, monto_calculado = ?, fecha_pago = ?, tipo_pago = ?, fecha_generada = ?
+    SET estado = 'Pendiente', monto_pagado = ?, monto_calculado = ?, fecha_pago = ?, tipo_pago = ?, fecha_generada = ?,
+        comprobante_url = COALESCE(?, comprobante_url)
     WHERE id = ?
   `;
-  db.query(sql, [data.monto, data.monto_calculado ?? data.monto, data.fecha_pago, data.tipo_pago || "mensual", new Date(), id], callback);
+  db.query(sql, [data.monto, data.monto_calculado ?? data.monto, data.fecha_pago, data.tipo_pago || "mensual", new Date(), data.comprobante_url || null, id], callback);
 };
 
 const findPaymentByReservationPeriod = (reservacion_id, mes, anio, callback) => {

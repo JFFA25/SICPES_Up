@@ -3,6 +3,7 @@ const { createQuota, findQuotaByReservationPeriod, updateQuotaStatusByReservatio
 const { sendWhatsApp } = require("../utils/notifications");
 const db = require("../database/db");
 const { notifyAdmins, notifyReservationOwner } = require("../utils/push");
+const cloudinaryStorage = require("../utils/cloudinaryStorage");
 
 const requestPayment = (req, res) => {
   if (!req.session.user) return res.status(401).json({ error: "No autenticado" });
@@ -101,7 +102,24 @@ const requestPayment = (req, res) => {
             return res.status(500).json({ error: "Error interno" });
           }
 
-          const createPaymentRecord = () => {
+          const createPaymentRecord = async () => {
+            // Comprobante opcional (multipart, campo "comprobante"): se sube a Cloudinary antes de guardar el pago
+            let comprobanteUrl = null;
+            if (req.file) {
+              if (!cloudinaryStorage.isConfigured()) {
+                return res.status(503).json({ error: "El almacenamiento de comprobantes aún no está configurado" });
+              }
+              try {
+                comprobanteUrl = await cloudinaryStorage.uploadReceipt(req.file.buffer, {
+                  kind: req.file.kind,
+                  userId: reservation.usuario_id,
+                });
+              } catch (uploadError) {
+                console.error("Error guardando el comprobante en Cloudinary:", uploadError);
+                return res.status(502).json({ error: "No se pudo guardar el comprobante. Intenta de nuevo" });
+              }
+            }
+
             const paymentData = {
               reservacion_id,
               monto,
@@ -110,6 +128,7 @@ const requestPayment = (req, res) => {
               mes: mesNumber,
               anio: anioNumber,
               tipo_pago,
+              comprobante_url: comprobanteUrl,
             };
             const saveCallback = (err4) => {
                 if (err4) {

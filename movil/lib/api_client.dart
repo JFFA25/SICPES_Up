@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +55,52 @@ class ApiClient {
 
   Future<dynamic> delete(String path) => _send('DELETE', path);
 
+  /// Envía un formulario multipart con un archivo (foto de perfil, comprobante...).
+  Future<dynamic> postMultipart(
+    String path, {
+    required String fileField,
+    required Uint8List bytes,
+    required String filename,
+    Map<String, String> fields = const {},
+  }) async {
+    final request = http.MultipartRequest('POST', _uri(path));
+    request.headers['Accept'] = 'application/json';
+    final token = await readToken();
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.fields.addAll(fields);
+    request.files.add(
+      http.MultipartFile.fromBytes(fileField, bytes, filename: filename),
+    );
+
+    try {
+      final streamed = await _client.send(request);
+      return _decode(await http.Response.fromStream(streamed));
+    } on ApiException {
+      rethrow;
+    } on FormatException {
+      throw const ApiException('El servidor devolvió una respuesta inválida.');
+    } catch (error) {
+      throw ApiException('No se pudo conectar con SICPES: $error');
+    }
+  }
+
+  dynamic _decode(http.Response response) {
+    final dynamic decoded = response.body.isEmpty
+        ? null
+        : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final message = decoded is Map<String, dynamic>
+          ? decoded['error'] ?? decoded['message']
+          : null;
+      throw ApiException(
+        message?.toString() ?? 'No se pudo completar la solicitud.',
+      );
+    }
+    return decoded;
+  }
+
   Future<dynamic> _send(
     String method,
     String path, {
@@ -75,18 +122,7 @@ class ApiClient {
     try {
       final streamed = await _client.send(request);
       final response = await http.Response.fromStream(streamed);
-      final dynamic decoded = response.body.isEmpty
-          ? null
-          : jsonDecode(response.body);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        final message = decoded is Map<String, dynamic>
-            ? decoded['error'] ?? decoded['message']
-            : null;
-        throw ApiException(
-          message?.toString() ?? 'No se pudo completar la solicitud.',
-        );
-      }
-      return decoded;
+      return _decode(response);
     } on ApiException {
       rethrow;
     } on FormatException {

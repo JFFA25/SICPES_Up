@@ -77,9 +77,12 @@ class PageBody extends StatelessWidget {
 }
 
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.status, {super.key});
+  const StatusBadge(this.status, {this.label, super.key});
 
   final String status;
+
+  /// Texto a mostrar si es distinto al estado (por ejemplo "En revisión").
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +113,7 @@ class StatusBadge extends StatelessWidget {
         border: Border.all(color: foreground.withValues(alpha: .18)),
       ),
       child: Text(
-        status.isEmpty ? 'sin estado' : status,
+        label ?? (status.isEmpty ? 'sin estado' : status),
         style: TextStyle(
           color: foreground,
           fontSize: 10,

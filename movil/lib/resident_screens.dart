@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'api_client.dart';
+import 'file_picker_helper.dart';
+import 'request_status_screen.dart';
+import 'room_detail_screen.dart';
 import 'sicpes_widgets.dart';
 
 class ResidentDashboardScreen extends StatefulWidget {
@@ -161,6 +164,24 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen> {
                           style: const TextStyle(color: Color(0xFFA93830)),
                         ),
                       ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonal(
+                        onPressed: () async {
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => RequestStatusScreen(
+                                api: widget.api,
+                                initialReservation: reservation,
+                              ),
+                            ),
+                          );
+                          if (mounted) _load();
+                        },
+                        child: const Text('Ver estado de mi petición'),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -357,6 +378,21 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
     }
   }
 
+  Future<void> _openDetail() async {
+    final price = _type == 'individual' ? _individualPrice : _sharedPrice;
+    final request = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RoomDetailScreen(
+          type: _type,
+          floor: _floor ?? '',
+          room: _room ?? '',
+          price: price,
+        ),
+      ),
+    );
+    if (request == true && mounted) await _submit();
+  }
+
   void _showMessage(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -414,6 +450,24 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
                           style: const TextStyle(color: Color(0xFFA93830)),
                         ),
                       ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonal(
+                        onPressed: () async {
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => RequestStatusScreen(
+                                api: widget.api,
+                                initialReservation: _reservation,
+                              ),
+                            ),
+                          );
+                          if (mounted) _load();
+                        },
+                        child: const Text('Ver estado de mi petición'),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -517,6 +571,14 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
                         ),
                       ),
                     const SizedBox(height: 12),
+                    if (_type.isNotEmpty && _room != null) ...[
+                      OutlinedButton.icon(
+                        onPressed: _openDetail,
+                        icon: const Icon(Icons.photo_library_outlined),
+                        label: const Text('Ver detalle de la habitación'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     FilledButton(
                       onPressed: _saving ? null : _submit,
                       child: Text(
@@ -549,6 +611,7 @@ class _ResidentPaymentsScreenState extends State<ResidentPaymentsScreen> {
   int _priceShared = 1800;
   bool _loading = true;
   bool _submitting = false;
+  PickedFile? _receipt;
   String? _error;
 
   @override
@@ -633,25 +696,77 @@ class _ResidentPaymentsScreenState extends State<ResidentPaymentsScreen> {
         : _priceShared.toDouble();
   }
 
+  static const _receiptExtensions = ['png', 'jpg', 'jpeg', 'webp', 'pdf'];
+  static const _maxReceiptBytes = 5 * 1024 * 1024;
+
+  Future<void> _pickReceipt() async {
+    try {
+      final file = await pickFile(extensions: _receiptExtensions);
+      if (file == null) return;
+      if (file.size > _maxReceiptBytes) {
+        setState(() => _error = 'El comprobante debe pesar 5 MB o menos.');
+        return;
+      }
+      setState(() {
+        _receipt = file;
+        _error = null;
+      });
+    } catch (_) {
+      setState(() => _error = 'No se pudo abrir el selector de archivos.');
+    }
+  }
+
+  void _showReceipt(String url) {
+    final isPdf = url.toLowerCase().contains('.pdf');
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Comprobante'),
+        content: isPdf
+            ? SelectableText('Comprobante en PDF:\n$url')
+            : Image.network(
+                url,
+                errorBuilder: (_, _, _) =>
+                    const Text('No se pudo cargar la imagen.'),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _requestPayment() async {
     final reservation = _reservation;
+    final receipt = _receipt;
     if (reservation == null) return;
+    if (receipt == null) {
+      setState(() => _error = 'Sube tu comprobante de pago para continuar.');
+      return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
     });
     try {
-      await widget.api.post(
+      await widget.api.postMultipart(
         '/mobile/payments/request',
-        body: {
-          'reservacion_id': reservation['id'],
-          'monto': _amount,
+        fileField: 'comprobante',
+        bytes: receipt.bytes,
+        filename: receipt.name,
+        fields: {
+          'reservacion_id': reservation['id'].toString(),
+          'monto': _amount.toString(),
           'fecha_pago':
               '$_targetYear-${_targetMonth.toString().padLeft(2, '0')}-01',
-          'mes': _targetMonth,
-          'anio': _targetYear,
+          'mes': _targetMonth.toString(),
+          'anio': _targetYear.toString(),
         },
       );
+      _receipt = null;
       await _load();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -755,6 +870,7 @@ class _ResidentPaymentsScreenState extends State<ResidentPaymentsScreen> {
                       child: FilledButton(
                         onPressed:
                             _submitting ||
+                                _receipt == null ||
                                 (payment != null &&
                                     payment['estado']
                                             .toString()
@@ -784,6 +900,92 @@ class _ResidentPaymentsScreenState extends State<ResidentPaymentsScreen> {
               ),
             ),
           ),
+          if (active &&
+              (payment == null || status.toLowerCase() == 'atrasado')) ...[
+            const SizedBox(height: 10),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Subir comprobante',
+                      style: TextStyle(
+                        color: forestGreen,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    InkWell(
+                      onTap: _submitting ? null : _pickReceipt,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 22,
+                          horizontal: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFCFBF6),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: _receipt == null
+                                ? const Color(0xFFDDD9CB)
+                                : brandGreen,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _receipt == null
+                                  ? Icons.upload_outlined
+                                  : Icons.check_circle_outline,
+                              color: brandGreen,
+                              size: 28,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _receipt == null
+                                  ? 'Selecciona un archivo'
+                                  : _receipt!.name,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: forestGreen,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              _receipt == null
+                                  ? 'PNG, JPG o PDF · máx. 5 MB'
+                                  : '${_receipt!.sizeLabel} · toca para cambiar',
+                              style: const TextStyle(
+                                color: mutedGreen,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_receipt != null)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _submitting
+                              ? null
+                              : () => setState(() => _receipt = null),
+                          child: const Text('Quitar archivo'),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           const Text(
             'Historial de pagos',
@@ -809,7 +1011,24 @@ class _ResidentPaymentsScreenState extends State<ResidentPaymentsScreen> {
                     displayMoney(item['monto'] ?? item['monto_pagado']),
                   ),
                   subtitle: Text(displayPeriod(item['mes'], item['anio'])),
-                  trailing: StatusBadge((item['estado'] ?? '').toString()),
+                  onTap: (item['comprobante_url'] ?? '').toString().isEmpty
+                      ? null
+                      : () => _showReceipt(item['comprobante_url'].toString()),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if ((item['comprobante_url'] ?? '').toString().isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 6),
+                          child: Icon(
+                            Icons.attach_file,
+                            size: 16,
+                            color: mutedGreen,
+                          ),
+                        ),
+                      StatusBadge((item['estado'] ?? '').toString()),
+                    ],
+                  ),
                 ),
               ),
         ],
@@ -836,12 +1055,52 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _reservation;
   bool _loading = true;
+  bool _uploadingAvatar = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _changePhoto() async {
+    PickedFile? file;
+    try {
+      file = await pickFile();
+    } catch (_) {
+      setState(() => _error = 'No se pudo abrir el selector de imágenes.');
+      return;
+    }
+    if (file == null) return;
+    if (file.size > 3 * 1024 * 1024) {
+      setState(() => _error = 'La imagen debe pesar 3 MB o menos.');
+      return;
+    }
+    setState(() {
+      _uploadingAvatar = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.api.postMultipart(
+        '/mobile/profile/avatar',
+        fileField: 'avatar',
+        bytes: file.bytes,
+        filename: file.name,
+      );
+      if (result is Map<String, dynamic> && result['user'] is Map) {
+        _profile = Map<String, dynamic>.from(result['user'] as Map);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada.')),
+        );
+      }
+    } on ApiException catch (error) {
+      _error = error.message;
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
   }
 
   Future<void> _load() async {
@@ -932,7 +1191,23 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _uploadingAvatar ? null : _changePhoto,
+              icon: _uploadingAvatar
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.photo_camera_outlined, size: 18),
+              label: Text(
+                _uploadingAvatar ? 'Subiendo foto...' : 'Cambiar foto de perfil',
+              ),
+            ),
+          ),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),

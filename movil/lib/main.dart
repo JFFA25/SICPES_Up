@@ -22,7 +22,7 @@ class SicpesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SICPES Residencial',
+      title: 'SICPES',
       debugShowCheckedModeBanner: false,
       locale: const Locale('es', 'MX'),
       supportedLocales: const [Locale('es', 'MX')],

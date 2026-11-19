@@ -14,7 +14,9 @@ const { requestPayment, getMyPayments, getAdminPayments, updateStatus } = requir
 const adminController = require("../controllers/admin.controller");
 const reportsController = require("../controllers/reports.controller");
 const roomController = require("../controllers/room.controller");
-const { getMyProfile } = require("../controllers/profile.controller");
+const { getMyProfile, uploadMyAvatar } = require("../controllers/profile.controller");
+const { parseAvatar } = require("../middlewares/avatarUpload");
+const { parseReceipt } = require("../middlewares/receiptUpload");
 const pushController = require("../controllers/push.controller");
 const { isAdmin } = require("../middlewares/auth.middleware");
 const { verifyToken } = require("../middlewares/jwt.middleware");
@@ -30,13 +32,14 @@ router.use(verifyToken);
 
 router.get("/session", getSession);
 router.get("/profile", getMyProfile);
+router.post("/profile/avatar", parseAvatar, uploadMyAvatar);
 router.get("/rooms", roomController.getRooms);
 router.get("/settings", adminController.getPublicSettings);
 router.get("/reservation", getMyReservation);
 router.post("/reservation", createReservationController);
 router.get("/reservation/occupied", getOccupiedRooms);
 router.get("/payments", getMyPayments);
-router.post("/payments/request", requestPayment);
+router.post("/payments/request", parseReceipt, requestPayment);
 router.get("/notifications", pushController.listNotifications);
 router.put("/notifications/read-all", pushController.markRead);
 router.put("/notifications/:id/read", pushController.markRead);
