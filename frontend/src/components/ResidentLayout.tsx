@@ -35,7 +35,9 @@ const initials = (name?: string) =>
 // Estructura del portal del residente (topbar + sidebar) tomada del prototipo.
 const ResidentLayout = ({ active, userName, userPhoto, children }: Props) => {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" || !window.matchMedia?.("(max-width: 900px)").matches
+  );
 
   const handleLogout = async () => {
     await disablePush().catch(() => {});
