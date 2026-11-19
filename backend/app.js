@@ -57,6 +57,9 @@ app.get("/", (req, res) => {
 const authRoutes = require("./src/routes/auth.routes");
 app.use("/api", authRoutes);
 
+const mobileRoutes = require("./src/routes/mobile.routes");
+app.use("/api/mobile", mobileRoutes);
+
 const profileRoutes = require("./src/routes/profile.routes");
 app.use("/api/profile", profileRoutes);
 

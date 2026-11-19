@@ -133,6 +133,24 @@ Esto levanta los 3 servicios en:
 - Backend: `http://localhost:3000`
 - API: `http://localhost:8000/docs`
 
+## Aplicación móvil
+
+El proyecto Flutter de `movil/` ofrece flujos nativos para residentes y
+administradores. Reutiliza el backend principal mediante endpoints
+`/api/mobile/*`, inicia sesión con JWT Bearer y conserva el token en
+almacenamiento seguro.
+
+```powershell
+cd movil
+flutter pub get
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api
+```
+
+`10.0.2.2` es la dirección del equipo anfitrión desde el emulador Android.
+Para navegador usa `http://localhost:3000/api`; para un teléfono físico usa la
+IP local del equipo. Las instrucciones para compilar Android, iOS y web están
+en [`movil/README.md`](./movil/README.md).
+
 ## Nuestro Equipo
 
 | Desarrollador | Rol | GitHub |

@@ -252,7 +252,7 @@ const AdminReservations = () => {
                   <small>{item.tipo || "Habitación"} · {item.habitacion ? `Hab. ${item.habitacion}` : "Sin asignar"}</small>
                 </div>
               </div>
-              <div className="admin-cell admin-hide-mobile"><span className={`admin-status ${statusClass(item.estado)}`}>{item.estado}</span></div>
+              <div className="admin-cell"><span className={`admin-status ${statusClass(item.estado)}`}>{item.estado}</span></div>
               <div className="admin-cell admin-hide-tablet"><small>INGRESO</small><strong>{formatDate(item.fecha_ingreso)}</strong></div>
               <div className="admin-cell admin-hide-mobile"><small>MENSUAL</small><strong>{money(item.monto)}</strong></div>
               <div className="admin-row-actions">

@@ -22,6 +22,43 @@ const passwordMatches = async (storedPassword, suppliedPassword) => {
   return storedPassword === suppliedPassword;
 };
 
+const loginMobile = (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Correo y contraseña son obligatorios" });
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  db.query(
+    "SELECT id, nombre, email, rol, password, confirmado FROM tbd_usuarios WHERE email = ? LIMIT 1",
+    [normalizedEmail],
+    async (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Error del servidor" });
+      }
+      if (results.length === 0 || !(await passwordMatches(results[0].password, password))) {
+        return res.status(400).json({ error: "Correo o contraseña incorrectos" });
+      }
+
+      const user = results[0];
+      if (!user.confirmado) {
+        return res.status(403).json({ error: "Debes confirmar tu correo antes de iniciar sesión" });
+      }
+      if (!process.env.JWT_SECRET) {
+        console.error("JWT_SECRET no está configurado para la autenticación móvil");
+        return res.status(503).json({ error: "La autenticación móvil no está configurada" });
+      }
+
+      const payload = { id: user.id, nombre: user.nombre, email: user.email, rol: user.rol };
+      const token = jwt.sign(payload, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      });
+      return res.json({ token, user: payload });
+    }
+  );
+};
+
 // Limpieza perezosa de solicitudes vencidas para no acumular memoria
 const cleanupExpired = () => {
   const now = Date.now();
@@ -156,4 +193,4 @@ const verifyLoginStatus = (req, res) => {
   });
 };
 
-module.exports = { loginMobileStep1, respondLoginFromWatch, verifyLoginStatus };
+module.exports = { loginMobile, loginMobileStep1, respondLoginFromWatch, verifyLoginStatus };

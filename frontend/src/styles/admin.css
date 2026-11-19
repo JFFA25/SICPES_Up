@@ -166,6 +166,9 @@
   background: #F4F2EA;
   transition: opacity .18s ease, transform .28s cubic-bezier(.22,1,.36,1), padding .28s cubic-bezier(.22,1,.36,1), border-color .28s cubic-bezier(.22,1,.36,1), visibility 0s;
 }
+.sicpes-admin .admin-sidebar-backdrop {
+  display: none;
+}
 .sicpes-admin .admin-workspace.sidebar-closed {
   grid-template-columns: 0 minmax(0, 1fr);
 }
@@ -1199,6 +1202,14 @@
     box-shadow: 8px 0 24px rgba(20,50,30,.12);
     transform: translateX(0);
   }
+  .sicpes-admin .admin-sidebar-backdrop {
+    position: fixed;
+    inset: 64px 0 0;
+    z-index: 44;
+    display: block;
+    border: 0;
+    background: rgba(17, 35, 24, .12);
+  }
   .sicpes-admin .admin-workspace.sidebar-closed .admin-sidebar {
     transform: translateX(-105%);
   }
@@ -1242,6 +1253,16 @@
   .sicpes-admin .admin-list-row {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
+    row-gap: 7px;
+  }
+  .sicpes-admin .admin-list-row > .admin-cell {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .sicpes-admin .admin-list-row > .admin-row-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
   .sicpes-admin .admin-list-row .admin-hide-mobile {
     display: none;

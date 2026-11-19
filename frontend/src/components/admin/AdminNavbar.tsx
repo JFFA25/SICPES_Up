@@ -23,7 +23,13 @@ interface AdminNavbarProps {
 
 const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => !window.matchMedia("(max-width: 900px)").matches
+  );
+
+  const closeMobileSidebar = () => {
+    if (window.matchMedia("(max-width: 900px)").matches) setSidebarOpen(false);
+  };
 
   const handleLogout = async () => {
     await disablePush().catch(() => {});
@@ -37,6 +43,7 @@ const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
       to={to}
       className={`admin-nav-link${active === key ? " active" : ""}`}
       aria-current={active === key ? "page" : undefined}
+      onClick={closeMobileSidebar}
     >
       <Icon name={iconName} size={17} />
       <span>{label}</span>
@@ -76,6 +83,14 @@ const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
       </header>
 
       <div className={`admin-workspace${sidebarOpen ? "" : " sidebar-closed"}`}>
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="admin-sidebar-backdrop"
+            aria-label="Cerrar menú de navegación"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         <aside id="admin-navigation" className="admin-sidebar">
           <span className="admin-side-label">ADMINISTRACIÓN</span>
           <nav aria-label="Administración">
@@ -84,6 +99,7 @@ const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
               to="/admin/reports"
               className={`admin-nav-link${active === "reports" ? " active" : ""}`}
               aria-current={active === "reports" ? "page" : undefined}
+              onClick={closeMobileSidebar}
             >
               <Icon name="chart" size={16} />
               <span>Reportes</span>
@@ -91,7 +107,7 @@ const AdminNavbar = ({ active, children }: AdminNavbarProps) => {
           </nav>
           <div className="admin-side-help">
             <span className="admin-side-label">AYUDA</span>
-            <Link to="/contact" className="admin-nav-link">
+            <Link to="/contact" className="admin-nav-link" onClick={closeMobileSidebar}>
               <Icon name="shield" size={16} />
               <span>Soporte SICPES</span>
             </Link>
