@@ -97,6 +97,13 @@ backend/
 - **Nodemailer** - Envío de correos
 - **CORS** - Configuración de CORS
 
+### CORS para Flutter Web
+
+Al desplegar Flutter Web, agrega su origen HTTPS a `MOBILE_WEB_ORIGINS` en la
+configuración del backend. No agregues `localhost` para la app nativa. Separa
+varios orígenes web con comas, por ejemplo:
+`https://sicpes-mobile.example.com,https://sicpes-preview.example.com`.
+
 ## Licencia
 
 ISC

@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
 const helmet = require("helmet");
+const createCorsOptions = require("./src/utils/corsOptions");
 
 const app = express();
 
@@ -19,13 +20,8 @@ app.use(
   })
 );
 
-// CORS - usa FRONTEND_URL en .env (dominio real en la nube, https://localhost:5173 en local)
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "https://localhost:5173",
-    credentials: true,
-  })
-);
+// CORS - Flutter Web deployments are configured with MOBILE_WEB_ORIGINS.
+app.use(cors(createCorsOptions()));
 
 // MIDDLEWARES
 app.use(express.json());

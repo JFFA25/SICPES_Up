@@ -197,7 +197,13 @@ const Payments = () => {
         return payment.mes === month && payment.anio === year && amount < basePrice;
     };
 
-    if (!user) return null;
+    if (!user) {
+        return (
+            <ResidentLayout active="payments">
+                <div className="mk-card" role="status">Cargando tus pagos…</div>
+            </ResidentLayout>
+        );
+    }
 
     const formatter = new Intl.NumberFormat('es-MX', {
         style: 'currency',

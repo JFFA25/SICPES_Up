@@ -192,8 +192,13 @@ const Dashboard = () => {
 
   }, [navigate, showError]);
 
-  // evita parpadeo
-  if (!user) return null;
+  if (!user) {
+    return (
+      <ResidentLayout active="dashboard">
+        <div className="mk-card" role="status">Cargando tu residencia…</div>
+      </ResidentLayout>
+    );
+  }
 
   const estado: string = reservation?.estado ?? "";
   const isFinalizada = estado === "finalizada";

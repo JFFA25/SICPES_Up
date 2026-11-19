@@ -15,8 +15,11 @@ Desde esta carpeta:
 
 ```powershell
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://localhost:3000/api
+flutter run
 ```
+
+Por defecto, la app usa el backend desplegado en
+`https://sicpes-backend.onrender.com/api`.
 
 En un emulador Android, usa la dirección del host del emulador:
 
@@ -24,13 +27,11 @@ En un emulador Android, usa la dirección del host del emulador:
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api
 ```
 
-En un teléfono físico, cambia `localhost` por la IP local del equipo que corre
-el backend. Para el backend desplegado, usa su URL HTTPS, por ejemplo:
-`https://sicpes-backend.onrender.com/api`.
-
-El valor predeterminado apunta a `http://localhost:3000/api`. La sesión nativa
-se autentica con JWT Bearer y conserva el token en almacenamiento seguro.
-Las cuentas nuevas se verifican con el código SMS que envía el backend.
+Para probar con el backend local desde un teléfono físico, reemplaza `10.0.2.2`
+por la IP del equipo que corre el backend y asegúrate de permitir HTTP local en
+la configuración de Android. La sesión nativa se autentica con JWT Bearer y
+conserva el token en almacenamiento seguro. Las cuentas nuevas se verifican con
+el código SMS que envía el backend.
 
 ## Compilar
 

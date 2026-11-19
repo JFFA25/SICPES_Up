@@ -298,7 +298,13 @@ const Reservation = () => {
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <ResidentLayout active="reservation">
+        <div className="mk-card" role="status">Cargando tus datos…</div>
+      </ResidentLayout>
+    );
+  }
 
   return (
     <ResidentLayout active="reservation" userName={user.nombre} userPhoto={user.foto_perfil_url}>

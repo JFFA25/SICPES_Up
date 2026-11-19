@@ -20,7 +20,7 @@ class ApiClient {
   static const _tokenKey = 'sicpes_access_token';
   static const _apiBase = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000/api',
+    defaultValue: 'https://sicpes-backend.onrender.com/api',
   );
 
   final http.Client _client;
