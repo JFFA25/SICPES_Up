@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'api_client.dart';
 import 'file_picker_helper.dart';
+import 'logout_flow.dart';
 import 'request_status_screen.dart';
 import 'room_detail_screen.dart';
 import 'sicpes_widgets.dart';
@@ -1041,11 +1042,17 @@ class ResidentAccountScreen extends StatefulWidget {
   const ResidentAccountScreen({
     required this.api,
     required this.user,
+    required this.onOpenSection,
+    required this.onLogout,
     super.key,
   });
 
   final ApiClient api;
   final Map<String, dynamic> user;
+
+  /// Cambia la pestaña del menú inferior (1 = Reservar, 2 = Pagos).
+  final ValueChanged<int> onOpenSection;
+  final Future<void> Function() onLogout;
 
   @override
   State<ResidentAccountScreen> createState() => _ResidentAccountScreenState();
@@ -1054,6 +1061,8 @@ class ResidentAccountScreen extends StatefulWidget {
 class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _reservation;
+  String _supportEmail = '';
+  Map<String, dynamic> _settings = {};
   bool _loading = true;
   bool _uploadingAvatar = false;
   String? _error;
@@ -1120,11 +1129,47 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
       _reservation = values[1] is Map<String, dynamic>
           ? Map<String, dynamic>.from(values[1] as Map)
           : null;
+      try {
+        final settings = await widget.api.get('/mobile/settings');
+        if (settings is Map<String, dynamic>) {
+          _settings = settings;
+          _supportEmail = (settings['emailAdmin'] ?? '').toString();
+        }
+      } on ApiException {
+        // el correo de soporte es opcional
+      }
     } on ApiException catch (error) {
       _error = error.message;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _openSupport() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Soporte SICPES'),
+        content: Text(
+          _supportEmail.isEmpty
+              ? 'Contacta al equipo administrativo para recibir ayuda.'
+              : 'Escribe al equipo administrativo: $_supportEmail',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int? get _rent {
+    final type = _reservation?['tipo']?.toString();
+    if (type == null) return null;
+    final key = type == 'compartida' ? 'precioCompartida' : 'precioIndividual';
+    return double.tryParse(_settings[key]?.toString() ?? '')?.round();
   }
 
   @override
@@ -1133,127 +1178,299 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
     final name = (_profile?['nombre'] ?? widget.user['nombre'] ?? 'Usuario')
         .toString();
     final email = (_profile?['email'] ?? widget.user['email'] ?? '').toString();
+    final phone = (_profile?['telefono'] ?? '').toString();
     final image = (_profile?['foto_perfil_url'] ?? '').toString();
+    final hasImage = image.startsWith('http');
+    final room = (_reservation?['habitacion'] ?? '').toString();
+    final floor = (_reservation?['piso'] ?? '').toString();
+    final state = _reservation?['estado']?.toString();
+    final entry = _reservation?['fecha_ingreso'];
+    final rent = _rent;
+
+    final chipLabel = state == null
+        ? 'SIN RESERVACIÓN'
+        : state == 'aceptada'
+        ? 'RESIDENTE ACTIVO'
+        : state.toUpperCase();
+    final chipActive = state == 'aceptada';
+
     return RefreshIndicator(
       onRefresh: _load,
-      child: PageBody(
-        title: 'Mi cuenta',
-        subtitle: 'Consulta tus datos personales y de residencia.',
+      child: ListView(
+        padding: EdgeInsets.zero,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (_error != null) InlineError(_error!),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: const Color(0xFFDDF0E2),
-                    backgroundImage: image.startsWith('http')
-                        ? NetworkImage(image)
-                        : null,
-                    child: image.startsWith('http')
-                        ? null
-                        : Text(
-                            _initials(name),
-                            style: const TextStyle(
-                              color: forestGreen,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+          // Banda verde + tarjeta de perfil
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                height: 92,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF3F8A62), Color(0xFF1E5A3C)],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 44, 16, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            color: forestGreen,
-                            fontWeight: FontWeight.w700,
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFDFBF7),
+                            shape: BoxShape.circle,
+                          ),
+                          child: CircleAvatar(
+                            radius: 38,
+                            backgroundColor: const Color(0xFFDDF0E2),
+                            backgroundImage: hasImage
+                                ? NetworkImage(image)
+                                : null,
+                            child: hasImage
+                                ? null
+                                : Text(
+                                    _initials(name),
+                                    style: const TextStyle(
+                                      color: forestGreen,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                           ),
                         ),
-                        Text(email, style: const TextStyle(color: mutedGreen)),
-                        if ((_profile?['telefono'] ?? '').toString().isNotEmpty)
-                          Text(
-                            _profile!['telefono'].toString(),
-                            style: const TextStyle(
-                              color: mutedGreen,
-                              fontSize: 12,
+                        if (_uploadingAvatar)
+                          const Positioned.fill(
+                            child: Padding(
+                              padding: EdgeInsets.all(3),
+                              child: CircleAvatar(
+                                backgroundColor: Color(0x88000000),
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _uploadingAvatar ? null : _changePhoto,
-              icon: _uploadingAvatar
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.photo_camera_outlined, size: 18),
-              label: Text(
-                _uploadingAvatar ? 'Subiendo foto...' : 'Cambiar foto de perfil',
-              ),
-            ),
-          ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Mi residencia',
-                    style: TextStyle(
-                      color: forestGreen,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: forestGreen,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: mutedGreen,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 3,
+                                    backgroundColor: chipActive
+                                        ? const Color(0xFF3F9A67)
+                                        : const Color(0xFFE59A1F),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    chipLabel,
+                                    style: const TextStyle(
+                                      color: mutedGreen,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: .6,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _AccountLine(
-                    label: 'Habitación',
-                    value: (_reservation?['habitacion'] ?? 'En asignación')
-                        .toString(),
-                  ),
-                  _AccountLine(
-                    label: 'Piso',
-                    value: (_reservation?['piso'] ?? '—').toString(),
-                  ),
-                  _AccountLine(
-                    label: 'Tipo',
-                    value: _capitalize(_reservation?['tipo']?.toString()),
-                  ),
-                  _AccountLine(
-                    label: 'Estado',
-                    value: (_reservation?['estado'] ?? 'Sin reservación')
-                        .toString(),
-                  ),
-                  if (_reservation?['fecha_ingreso'] != null)
-                    _AccountLine(
-                      label: 'Fecha de ingreso',
-                      value: displayDate(_reservation?['fecha_ingreso']),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: OutlinedButton.icon(
+                        onPressed: _uploadingAvatar ? null : _changePhoto,
+                        icon: const Icon(Icons.photo_camera_outlined, size: 15),
+                        label: const Text('Editar'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: forestGreen,
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: borderColor),
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
                     ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Text(
-              'Si necesitas cambiar tus datos, contacta al equipo de soporte.',
-              style: TextStyle(color: mutedGreen, fontSize: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_error != null) InlineError(_error!),
+                // Datos de la residencia
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoTile(
+                        icon: Icons.bed_outlined,
+                        value: room.isEmpty ? '—' : room,
+                        label: 'HABITACIÓN',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _InfoTile(
+                        icon: Icons.home_outlined,
+                        value: _capitalize(_reservation?['tipo']?.toString()),
+                        label: 'TIPO',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoTile(
+                        icon: Icons.calendar_today_outlined,
+                        value: entry == null ? '—' : displayDate(entry),
+                        label: 'INGRESO',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _InfoTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        value: rent == null ? '—' : displayMoney(rent),
+                        label: 'RENTA',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _Section(
+                  title: 'Datos personales',
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _DataField(label: 'NOMBRE COMPLETO', value: name),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _DataField(label: 'CORREO', value: email),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _DataField(
+                              label: 'TELÉFONO',
+                              value: phone.isEmpty ? '—' : phone,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _DataField(
+                              label: 'HABITACIÓN',
+                              value: room.isEmpty
+                                  ? '—'
+                                  : floor.isEmpty
+                                  ? room
+                                  : '$room · Piso $floor',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _Section(
+                  title: 'Accesos rápidos',
+                  child: Column(
+                    children: [
+                      _QuickLink(
+                        icon: Icons.credit_card_outlined,
+                        title: 'Pagos y comprobantes',
+                        onTap: () => widget.onOpenSection(2),
+                      ),
+                      const Divider(height: 1, color: borderColor),
+                      _QuickLink(
+                        icon: Icons.calendar_month_outlined,
+                        title: 'Mi reservación',
+                        onTap: () => widget.onOpenSection(1),
+                      ),
+                      const Divider(height: 1, color: borderColor),
+                      _QuickLink(
+                        icon: Icons.support_agent_outlined,
+                        title: 'Soporte SICPES',
+                        onTap: _openSupport,
+                      ),
+                      const Divider(height: 1, color: borderColor),
+                      _QuickLink(
+                        icon: Icons.logout_rounded,
+                        title: 'Cerrar sesión',
+                        color: const Color(0xFFA93830),
+                        onTap: () =>
+                            confirmAndLogout(context, widget.onLogout),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1262,29 +1479,183 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
   }
 }
 
-class _AccountLine extends StatelessWidget {
-  const _AccountLine({required this.label, required this.value});
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE6F3E9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 17, color: brandGreen),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: forestGreen,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: mutedGreen,
+                    fontSize: 8,
+                    letterSpacing: .8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: forestGreen,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _DataField extends StatelessWidget {
+  const _DataField({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCFBF6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(color: mutedGreen)),
+          Text(
+            label,
+            style: const TextStyle(
+              color: mutedGreen,
+              fontSize: 7.5,
+              letterSpacing: .7,
+            ),
           ),
+          const SizedBox(height: 3),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: forestGreen,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuickLink extends StatelessWidget {
+  const _QuickLink({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.color = forestGreen,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 20, color: color.withValues(alpha: .5)),
+          ],
+        ),
       ),
     );
   }

@@ -8,8 +8,13 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({
     required this.api,
     required this.onAuthenticated,
+    this.onBack,
+    this.initialRegister = false,
     super.key,
   });
+
+  final VoidCallback? onBack;
+  final bool initialRegister;
 
   final ApiClient api;
   final ValueChanged<Map<String, dynamic>> onAuthenticated;
@@ -25,7 +30,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _code = TextEditingController();
-  bool _register = false;
+  late bool _register = widget.initialRegister;
   bool _verify = false;
   bool _busy = false;
   bool _obscurePassword = true;
@@ -162,7 +167,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const _Brand(),
+                        Row(
+                          children: [
+                            if (widget.onBack != null)
+                              IconButton(
+                                tooltip: 'Volver al inicio',
+                                onPressed: _busy ? null : widget.onBack,
+                                icon: const Icon(Icons.arrow_back_rounded),
+                                color: _forest,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            const _Brand(),
+                          ],
+                        ),
                         const SizedBox(height: 26),
                         Text(
                           _verify
@@ -349,15 +366,6 @@ class _Brand extends StatelessWidget {
             Text(
               'SICPES',
               style: TextStyle(color: _forest, fontWeight: FontWeight.w800),
-            ),
-            Text(
-              'RESIDENCIAL',
-              style: TextStyle(
-                color: Color(0xFF5F7065),
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
-              ),
             ),
           ],
         ),
