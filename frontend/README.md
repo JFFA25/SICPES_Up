@@ -60,6 +60,14 @@ Ejecuta el servidor de desarrollo local con Vite:
 npm run dev
 ```
 *(Nota: Asegúrate de tener el backend corriendo en `localhost:3000` para que el proxy funcione correctamente).*
+
+### Inicio de sesión con Google
+
+El botón de Google requiere `VITE_GOOGLE_CLIENT_ID` durante el build del frontend.
+Configura esta variable con el ID de cliente OAuth de tipo aplicación web y agrega
+el origen de la web a los orígenes autorizados en Google Auth Platform. El backend
+también debe tener `GOOGLE_CLIENT_ID` con el mismo valor para validar la credencial.
+El secreto del cliente no se usa en el frontend y nunca debe publicarse.
  
 ## Documentación Viva
 Visita la aplicación corriendo localmente en tu navegador:  

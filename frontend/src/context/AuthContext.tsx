@@ -6,6 +6,7 @@ interface User {
   nombre: string;
   email: string;
   rol: string;
+  foto_perfil_url?: string | null;
 }
 
 interface AuthContextType {
@@ -32,8 +33,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: data.id,
           nombre: data.nombre,
-          email: data.sub,
+          email: data.email,
           rol: data.rol,
+          foto_perfil_url: data.foto_perfil_url ?? null,
         });
       } else {
         setUser(null);

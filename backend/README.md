@@ -35,9 +35,14 @@ DB_USER=root
 DB_PASSWORD=tu_password
 DB_NAME=sicpes
 SESSION_SECRET=tu_secreto
+GOOGLE_CLIENT_ID=tu_id_de_cliente_oauth_web
 ```
 
 3. Ejecuta los scripts SQL en `src/database/SQL/` para crear la estructura de la base de datos.
+
+El `GOOGLE_CLIENT_ID` debe coincidir con el cliente OAuth web usado por el frontend.
+El backend valida la credencial de Google y establece la sesión de SICPES; no se
+requiere enviar el secreto del cliente al navegador.
 
 ## Estructura del Proyecto
 
@@ -65,6 +70,7 @@ backend/
 ### Autenticación
 - `POST /api/auth/register` - Registro de usuarios
 - `POST /api/auth/login` - Inicio de sesión
+- `POST /api/auth/google` - Inicio de sesión o registro con Google
 - `POST /api/auth/logout` - Cierre de sesión
 - `GET /api/auth/checkSession` - Verificar sesión activa
 

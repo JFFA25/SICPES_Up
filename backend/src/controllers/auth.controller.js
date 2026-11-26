@@ -3,8 +3,10 @@ const { sendConfirmationEmail, sendForgotPasswordEmail } = require("../utils/mai
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../database/db");
+const { OAuth2Client } = require("google-auth-library");
 
 const frontendBaseUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+const googleOAuthClient = new OAuth2Client();
 
 // GLOBAL MAP TO TRACK USER SESSIONS
 const activeSessions = new Map();
@@ -21,6 +23,57 @@ const passwordMatches = async (storedPassword, suppliedPassword) => {
   }
 
   return storedPassword === suppliedPassword;
+};
+
+const createUserSession = (req, res, user) => {
+  req.session.regenerate((err) => {
+    if (err) {
+      return res.status(500).json({ error: "Error al crear la sesión" });
+    }
+
+    if (activeSessions.has(user.id)) {
+      const oldSessionId = activeSessions.get(user.id);
+      if (req.sessionStore && req.sessionStore.destroy) {
+        req.sessionStore.destroy(oldSessionId, (destroyError) => {
+          if (destroyError) console.error("Error al destruir sesión antigua:", destroyError);
+        });
+      }
+    }
+
+    activeSessions.set(user.id, req.session.id);
+    req.session.user = {
+      id: user.id,
+      nombre: user.nombre,
+      email: user.email,
+      rol: user.rol,
+      foto_perfil_url: user.foto_perfil_url || null,
+    };
+
+    req.session.save((saveError) => {
+      if (saveError) {
+        return res.status(500).json({ error: "Error al guardar la sesión" });
+      }
+
+      return res.json({ message: "Login exitoso" });
+    });
+  });
+};
+
+const getGooglePictureUrl = (picture) => {
+  if (typeof picture !== "string") return null;
+
+  try {
+    const url = new URL(picture);
+    const isGoogleImageHost =
+      url.hostname === "googleusercontent.com" ||
+      url.hostname.endsWith(".googleusercontent.com");
+
+    return url.protocol === "https:" && isGoogleImageHost && url.href.length <= 512
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 const loginUser = (req, res) => {
@@ -53,38 +106,95 @@ const loginUser = (req, res) => {
       return res.status(403).json({ error: "Debes confirmar tu correo antes de iniciar sesión" });
     }
 
-    req.session.regenerate((err) => {
-      if (err) {
-        return res.status(500).json({ error: "Error al crear la sesión" });
+    return createUserSession(req, res, user);
+  });
+};
+
+const googleLogin = async (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const { credential } = req.body || {};
+
+  if (!clientId) {
+    return res.status(503).json({ error: "El inicio de sesión con Google no está configurado" });
+  }
+
+  if (typeof credential !== "string" || !credential) {
+    return res.status(400).json({ error: "No se recibió la credencial de Google" });
+  }
+
+  let payload;
+  try {
+    const ticket = await googleOAuthClient.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    console.warn("No se pudo validar la credencial de Google:", error.message);
+    return res.status(401).json({ error: "La autenticación de Google no es válida. Intenta de nuevo." });
+  }
+
+  const email = normalizeEmail(payload?.email);
+  if (!payload?.sub || !email || payload.email_verified !== true || email.length > 100) {
+    return res.status(401).json({ error: "La cuenta de Google no tiene un correo verificado válido" });
+  }
+
+  const nombre = (payload.name || email.split("@")[0]).trim().slice(0, 100);
+  const fotoPerfil = getGooglePictureUrl(payload.picture);
+
+  db.query(
+    "SELECT id, nombre, email, rol, confirmado, foto_perfil_url FROM tbd_usuarios WHERE email = ? LIMIT 1",
+    [email],
+    (findError, results) => {
+      if (findError) {
+        console.error("Error buscando usuario de Google:", findError);
+        return res.status(500).json({ error: "No se pudo consultar la cuenta" });
       }
 
-      if (activeSessions.has(user.id)) {
-        const oldSessionId = activeSessions.get(user.id);
-        if (req.sessionStore && req.sessionStore.destroy) {
-          req.sessionStore.destroy(oldSessionId, (err) => {
-            if (err) console.error("Error al destruir sesión antigua:", err);
+      const existingUser = results[0];
+      if (existingUser) {
+        return db.query(
+          `UPDATE tbd_usuarios
+           SET confirmado = 1,
+               token = NULL,
+               foto_perfil_url = COALESCE(NULLIF(foto_perfil_url, ''), ?)
+           WHERE id = ?`,
+          [fotoPerfil, existingUser.id],
+          (updateError) => {
+            if (updateError) {
+              console.error("Error actualizando cuenta autenticada con Google:", updateError);
+              return res.status(500).json({ error: "No se pudo actualizar la cuenta" });
+            }
+
+            existingUser.confirmado = 1;
+            existingUser.foto_perfil_url = existingUser.foto_perfil_url || fotoPerfil;
+            return createUserSession(req, res, existingUser);
+          }
+        );
+      }
+
+      db.query(
+        `INSERT INTO tbd_usuarios
+           (nombre, email, password, rol, confirmado, token, foto_perfil_url)
+         VALUES (?, ?, NULL, 'user', 1, NULL, ?)`,
+        [nombre, email, fotoPerfil],
+        (insertError, result) => {
+          if (insertError) {
+            console.error("Error creando usuario de Google:", insertError);
+            return res.status(500).json({ error: "No se pudo crear la cuenta" });
+          }
+
+          return createUserSession(req, res, {
+            id: result.insertId,
+            nombre,
+            email,
+            rol: "user",
+            foto_perfil_url: fotoPerfil,
           });
         }
-      }
-
-      activeSessions.set(user.id, req.session.id);
-      req.session.user = {
-        id: user.id,
-        nombre: user.nombre,
-        email: user.email,
-        rol: user.rol,
-        foto_perfil_url: user.foto_perfil_url || null,
-      };
-
-      req.session.save((err) => {
-        if (err) {
-          return res.status(500).json({ error: "Error al guardar la sesión" });
-        }
-
-        return res.json({ message: "Login exitoso" });
-      });
-    });
-  });
+      );
+    }
+  );
 };
 
 const getSession = (req, res) => {
@@ -302,4 +412,4 @@ const checkResetToken = (req, res) => {
   });
 };
 
-module.exports = { loginUser, registerUser, confirmUser, verifyOtp, resendConfirmation, getSession, logoutUser, forgotPassword, resetPassword, checkResetToken };
+module.exports = { loginUser, googleLogin, registerUser, confirmUser, verifyOtp, resendConfirmation, getSession, logoutUser, forgotPassword, resetPassword, checkResetToken };

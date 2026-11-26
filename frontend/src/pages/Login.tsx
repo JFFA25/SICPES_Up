@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
+import type { CredentialResponse } from "@react-oauth/google";
 import { LoaderCircle } from "lucide-react";
 import AuthShell from "../components/AuthShell";
 import Field from "../components/ui/Field";
@@ -7,6 +9,8 @@ import Icon from "../components/ui/Icon";
 import Notice from "../components/ui/Notice";
 import { useAuth } from "../context/AuthContext";
 import { useTimedMessage } from "../hooks/useTimedMessage";
+
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
 const Login = () => {
   const { login } = useAuth();
@@ -24,8 +28,37 @@ const Login = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const hasError = message?.type === "error";
+
+  const completeLogin = async () => {
+    const sessionRes = await fetch("/api/session", {
+      credentials: "include",
+    });
+
+    if (!sessionRes.ok) {
+      throw new Error("Error al validar la sesión del usuario.");
+    }
+
+    const sessionData = await sessionRes.json();
+    login(
+      {
+        id: sessionData.id,
+        nombre: sessionData.nombre,
+        email: sessionData.email,
+        rol: sessionData.rol,
+        foto_perfil_url: sessionData.foto_perfil_url,
+      },
+      ""
+    );
+
+    if (sessionData.rol === "admin") {
+      navigate("/admin/reservations");
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   // INPUTS
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +85,6 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      // Utiliza el proxy configurado en Vite
       const res = await fetch("/api/login", {
         method: "POST",
         headers: {
@@ -66,41 +98,47 @@ const Login = () => {
 
       if (!res.ok) {
         showError(data.error || data.detail || "Credenciales incorrectas");
-        setIsSubmitting(false);
         return;
       }
 
-      const sessionRes = await fetch("/api/session", {
-        credentials: "include",
-      });
-
-      if (!sessionRes.ok) {
-        showError("Error al validar la sesión del usuario.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const sessionData = await sessionRes.json();
-
-      login(
-        {
-          id: sessionData.id,
-          nombre: sessionData.nombre,
-          email: sessionData.sub,
-          rol: sessionData.rol,
-        },
-        ""
-      );
-
-      if (sessionData.rol === "admin") {
-        navigate("/admin/reservations");
-      } else {
-        navigate("/dashboard");
-      }
+      await completeLogin();
     } catch (err) {
       console.error("Error al conectar:", err);
-      showError("Error al conectar con el servidor central.");
+      showError(err instanceof Error ? err.message : "Error al conectar con el servidor central.");
+    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSuccess = async ({ credential }: CredentialResponse) => {
+    if (!credential) {
+      showError("Google no devolvió una credencial válida. Intenta de nuevo.");
+      return;
+    }
+
+    setIsGoogleSubmitting(true);
+    clear();
+
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.error || "No se pudo iniciar sesión con Google.");
+        return;
+      }
+
+      await completeLogin();
+    } catch (err) {
+      console.error("Error al iniciar sesión con Google:", err);
+      showError(err instanceof Error ? err.message : "No se pudo conectar con el servidor.");
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -155,6 +193,34 @@ const Login = () => {
           )}
         </button>
       </form>
+
+      <div className="mk-social-divider" aria-hidden="true">
+        <span>O CONTINÚA CON</span>
+      </div>
+      <div className="mk-google-login" aria-busy={isGoogleSubmitting}>
+        {googleClientId ? (
+          <GoogleOAuthProvider clientId={googleClientId}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => showError("No se pudo abrir el inicio de sesión de Google.")}
+              theme="outline"
+              size="large"
+              shape="rectangular"
+              text="continue_with"
+              width={320}
+            />
+          </GoogleOAuthProvider>
+        ) : (
+          <p className="mk-muted" role="status">
+            El inicio de sesión con Google aún no está configurado en este entorno.
+          </p>
+        )}
+      </div>
+      {isGoogleSubmitting && (
+        <p className="mk-google-loading" role="status">
+          <LoaderCircle size={14} className="mk-spin" /> Conectando con Google...
+        </p>
+      )}
 
       <p className="mk-auth-note">
         ¿No tienes cuenta?{" "}

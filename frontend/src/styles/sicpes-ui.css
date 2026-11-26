@@ -453,6 +453,40 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.mk-social-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 12px;
+  color: #78847C;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+.mk-social-divider::before,
+.mk-social-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #DEDCD5;
+}
+.mk-google-login {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+.mk-google-login > div {
+  max-width: 100%;
+}
+.mk-google-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: #66766A;
+  font-size: 10px;
   gap: 10px;
   flex-wrap: wrap;
 }
