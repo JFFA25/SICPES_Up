@@ -11,7 +11,6 @@ interface FieldErrors {
   nombre?: string;
   email?: string;
   password?: string;
-  telefono?: string;
 }
 
 const Register = () => {
@@ -24,7 +23,6 @@ const Register = () => {
     nombre: "",
     email: "",
     password: "",
-    telefono: "",
   });
 
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -53,12 +51,6 @@ const Register = () => {
     if (name === "password") {
       if (value.length < 8) {
         fieldError = "Mínimo 8 caracteres";
-      }
-    }
-
-    if (name === "telefono") {
-      if (value.trim() && !/^\+?[0-9]{10,15}$/.test(value.trim())) {
-        fieldError = "Formato inválido (Ej: +5215512345678)";
       }
     }
 
@@ -91,7 +83,7 @@ const Register = () => {
       return;
     }
 
-    if (errors.nombre || errors.email || errors.password || errors.telefono) return;
+    if (errors.nombre || errors.email || errors.password) return;
 
     if (form.password !== confirm) {
       showError("Las contraseñas no coinciden.");
@@ -106,21 +98,6 @@ const Register = () => {
     setIsSubmitting(true);
 
     try {
-      let phoneInput = form.telefono.trim();
-      if (phoneInput) {
-        const digits = phoneInput.replace(/\D/g, "");
-        if (digits.length === 10) {
-          phoneInput = `+521${digits}`;
-        } else if (digits.length === 12 && digits.startsWith("52")) {
-          phoneInput = `+521${digits.substring(2)}`;
-        } else if (digits.length === 13 && digits.startsWith("521")) {
-          phoneInput = `+${digits}`;
-        } else if (!phoneInput.startsWith("+")) {
-          phoneInput = `+${phoneInput}`;
-        }
-      }
-      const formattedPhone = phoneInput ? `whatsapp:${phoneInput}` : "";
-
       const res = await fetch("/api/register", {
         method: "POST",
         headers: {
@@ -129,7 +106,6 @@ const Register = () => {
         credentials: "include",
         body: JSON.stringify({
           ...form,
-          telefono: formattedPhone,
         }),
       });
 
@@ -137,10 +113,13 @@ const Register = () => {
 
       if (!res.ok) {
         showError(data.error || "El correo electrónico ya está registrado. Intenta con otro o inicia sesión");
+        if (data.requiresVerification) {
+          setVerifyEmail(form.email);
+        }
       } else {
-        showSuccess(data.message || "Usuario registrado correctamente. Revisa tu correo o WhatsApp para confirmar tu cuenta.");
+        showSuccess(data.message || "Registro exitoso. Revisa tu correo para confirmar tu cuenta.");
         setVerifyEmail(form.email);
-        setForm({ nombre: "", email: "", password: "", telefono: "" });
+        setForm({ nombre: "", email: "", password: "" });
         setConfirm("");
         setAccepted(false);
         if (data.requiresVerification) {
@@ -155,7 +134,7 @@ const Register = () => {
     }
   };
 
-  const isFormInvalid = Boolean(errors.nombre || errors.email || errors.password || errors.telefono);
+  const isFormInvalid = Boolean(errors.nombre || errors.email || errors.password);
   const mismatch = confirm.length > 0 && confirm !== form.password;
 
   return (
@@ -209,19 +188,6 @@ const Register = () => {
             onChange={(e) => { setConfirm(e.target.value); clear(); }}
             error={mismatch ? "Las contraseñas no coinciden" : undefined}
           />
-          <div style={{ gridColumn: "1 / -1" }}>
-            <Field
-              id="register-telefono"
-              label="TELÉFONO (WHATSAPP)"
-              name="telefono"
-              autoComplete="tel"
-              placeholder="Ej: +5215512345678"
-              value={form.telefono}
-              onChange={handleChange}
-              error={errors.telefono}
-              hint="Con código de país, para confirmar tu cuenta por WhatsApp."
-            />
-          </div>
         </div>
 
         <label className="mk-checkline">
@@ -236,9 +202,9 @@ const Register = () => {
         {message && (
           <div style={{ display: "grid", gap: 6 }}>
             <Notice type={message.type} onClose={clear}>{message.text}</Notice>
-            {message.type === "success" && verifyEmail && (
+            {verifyEmail && (
               <a href={`/verify-account?email=${encodeURIComponent(verifyEmail)}`} className="mk-text-link" style={{ justifySelf: "center" }}>
-                Verificar con mi correo
+                Continuar con la verificación por correo
               </a>
             )}
           </div>

@@ -1,6 +1,5 @@
 const { createUser } = require("../models/user.model");
 const { sendConfirmationEmail, sendForgotPasswordEmail } = require("../utils/mailer");
-const { sendOtpCode } = require("../utils/notifications");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../database/db");
@@ -139,14 +138,18 @@ const registerUser = async (req, res) => {
         phone: phoneValue,
       });
 
-      // await sendConfirmationEmail(normalizedEmail, token); // Disabled automatically on registration as requested
-
-      if (phoneValue) {
-        await sendOtpCode({ to: phoneValue, code: otp, channel: phoneValue.includes("whatsapp") ? "whatsapp" : "sms" });
+      try {
+        await sendConfirmationEmail(normalizedEmail, token, nombre);
+      } catch (error) {
+        console.error("Error al enviar correo de confirmación:", error);
+        return res.status(502).json({
+          error: "La cuenta se registró, pero no se pudo enviar el correo de confirmación.",
+          requiresVerification: true,
+        });
       }
 
       res.json({
-        message: "Registro exitoso. Revisa tu correo para confirmar tu cuenta y/o tu código de verificación.",
+        message: "Registro exitoso. Revisa tu correo para confirmar tu cuenta.",
         requiresVerification: true,
         email: normalizedEmail,
       });
