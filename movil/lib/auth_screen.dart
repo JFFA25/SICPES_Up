@@ -424,25 +424,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ],
                               ),
                             ),
-                            OutlinedButton.icon(
-                              onPressed: _busy ? null : _signInWithGoogle,
-                              icon: const Text(
-                                'G',
-                                style: TextStyle(
-                                  color: Color(0xFF4285F4),
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              label: const Text('Continuar con Google'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: _forest,
-                                backgroundColor: Colors.white,
-                                side: const BorderSide(
-                                  color: Color(0xFFDDD9CB),
-                                ),
-                                minimumSize: const Size.fromHeight(48),
-                              ),
+                            _GoogleButton(
+                              busy: _busy,
+                              onPressed: _signInWithGoogle,
                             ),
                             if (_googleClientId.isEmpty)
                               const Padding(
@@ -525,6 +509,64 @@ class _Message extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(text, style: TextStyle(color: color, fontSize: 12)),
+    );
+  }
+}
+
+/// Botón "Continuar con Google" con el logotipo oficial de Google.
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.busy, required this.onPressed});
+
+  final bool busy;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: busy ? null : onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Ink(
+          height: 52,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFDADCE0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F000000),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Opacity(
+                opacity: busy ? .45 : 1,
+                child: Image.asset(
+                  'assets/images/google_g.png',
+                  width: 22,
+                  height: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Continuar con Google',
+                style: TextStyle(
+                  color: busy ? const Color(0xFF9AA0A6) : const Color(0xFF3C4043),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: .1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

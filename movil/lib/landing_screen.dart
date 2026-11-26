@@ -225,13 +225,20 @@ class _LandingScreenState extends State<LandingScreen> {
                             ),
                             child: Column(
                               children: [
-                                _MenuItem('Inicio', onTap: _goTop),
+                                _MenuItem(
+                                  'Inicio',
+                                  selected: _selectedTab == _LandingTab.home,
+                                  onTap: _goTop,
+                                ),
                                 _MenuItem(
                                   'La residencia',
+                                  selected:
+                                      _selectedTab == _LandingTab.residence,
                                   onTap: () => _selectTab(_LandingTab.residence),
                                 ),
                                 _MenuItem(
                                   'Contacto',
+                                  selected: _selectedTab == _LandingTab.contact,
                                   onTap: () => _selectTab(_LandingTab.contact),
                                 ),
                                 _MenuItem(
@@ -277,28 +284,6 @@ class _LandingScreenState extends State<LandingScreen> {
               controller: _scroll,
               child: _buildTabContent(),
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTab.index,
-        onDestinationSelected: (index) =>
-            _selectTab(_LandingTab.values[index]),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.apartment_outlined),
-            selectedIcon: Icon(Icons.apartment),
-            label: 'Residencia',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.mail_outline),
-            selectedIcon: Icon(Icons.mail),
-            label: 'Contacto',
           ),
         ],
       ),
@@ -883,9 +868,10 @@ class _LogoLockup extends StatelessWidget {
 }
 
 class _MenuItem extends StatelessWidget {
-  const _MenuItem(this.label, {required this.onTap});
+  const _MenuItem(this.label, {required this.onTap, this.selected = false});
 
   final String label;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
@@ -895,13 +881,17 @@ class _MenuItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFE6F3E9) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
         child: Text(
           label,
-          style: const TextStyle(
-            color: forestGreen,
+          style: TextStyle(
+            color: selected ? brandGreen : forestGreen,
             fontSize: 14,
-            fontWeight: FontWeight.w500,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),
