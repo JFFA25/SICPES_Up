@@ -190,14 +190,22 @@ const Register = () => {
           />
         </div>
 
-        <label className="mk-checkline">
+        <div className="mk-checkline">
           <input
+            id="register-legal-acceptance"
             type="checkbox"
             checked={accepted}
             onChange={(e) => { setAccepted(e.target.checked); clear(); }}
           />
-          Acepto los términos, condiciones y el aviso de privacidad.
-        </label>
+          <span>
+            <label htmlFor="register-legal-acceptance" className="cursor-pointer">
+              Acepto los{" "}
+            </label>
+            <Link to="/terminos" className="mk-text-link">términos y condiciones</Link>
+            {" y el "}
+            <Link to="/privacidad" className="mk-text-link">aviso de privacidad</Link>.
+          </span>
+        </div>
 
         {message && (
           <div style={{ display: "grid", gap: 6 }}>

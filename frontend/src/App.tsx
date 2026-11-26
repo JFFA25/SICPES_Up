@@ -20,6 +20,7 @@ import ResetPassword from "./pages/ResetPassword";
 import VerifyAccount from "./pages/VerifyAccount";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
+import LegalPage from "./pages/LegalPage";
 
 function App() {
   return (
@@ -45,6 +46,8 @@ function App() {
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/error" element={<Error />} />
         <Route path="/sitemap" element={<Sitemap />} />
+        <Route path="/privacidad" element={<LegalPage documentType="privacy" />} />
+        <Route path="/terminos" element={<LegalPage documentType="terms" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

@@ -8,8 +8,8 @@ const Footer = () => {
         
         {/* IZQUIERDA */}
         <div className="text-center md:text-left space-y-1">
-          <p className="hover:underline cursor-pointer">Aviso de privacidad</p>
-          <p className="hover:underline cursor-pointer">Términos de uso</p>
+          <p className="hover:underline cursor-pointer"><Link to="/privacidad">Aviso de privacidad</Link></p>
+          <p className="hover:underline cursor-pointer"><Link to="/terminos">Términos de uso</Link></p>
           <p className="hover:underline cursor-pointer">Contacto</p>
         </div>
 
