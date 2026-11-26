@@ -47,6 +47,7 @@ const Navbar = () => {
 
         <nav id="home-navigation" className={`mk-home-nav-links${menuOpen ? " open" : ""}`} aria-label="Navegación principal">
           <Link to="/" onClick={() => setMenuOpen(false)}>Inicio</Link>
+          <Link to="/residencia" onClick={() => setMenuOpen(false)}>La residencia</Link>
           <Link to="/contact" onClick={() => setMenuOpen(false)}>Contacto</Link>
           {isAdmin && (
             <Link to="/admin/reservations" className="admin" onClick={() => setMenuOpen(false)}>

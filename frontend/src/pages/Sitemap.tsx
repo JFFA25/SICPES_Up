@@ -20,6 +20,7 @@ const Sitemap = () => {
                         <h2 className="text-xl font-semibold text-green-700 mb-4 border-b pb-2">Páginas Generales</h2>
                         <ul className="space-y-3">
                             <li><Link to="/" className="text-gray-700 hover:text-green-600 hover:underline">Inicio</Link></li>
+                            <li><Link to="/residencia" className="text-gray-700 hover:text-green-600 hover:underline">La residencia</Link></li>
                             <li><Link to="/contact" className="text-gray-700 hover:text-green-600 hover:underline">Contacto</Link></li>
                             <li><Link to="/login" className="text-gray-700 hover:text-green-600 hover:underline">Iniciar Sesión</Link></li>
                             <li><Link to="/register" className="text-gray-700 hover:text-green-600 hover:underline">Registrarse</Link></li>

@@ -7,7 +7,8 @@ const routeNames: Record<string, string> = {
   admin: "Administración",
   reservations: "Gestión de Reservaciones",
   settings: "Configuración",
-  contact: "Contacto"
+  contact: "Contacto",
+  residencia: "La residencia"
 };
 
 const Breadcrumbs = () => {

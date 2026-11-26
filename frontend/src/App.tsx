@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register"
 import Contact from "./pages/Contact";
+import Residence from "./pages/Residence";
 import Dashboard from "./pages/Dashboard";
 import Reservation from "./pages/Reservation";
 import Payments from "./pages/Payments";
@@ -30,6 +31,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify-account" element={<VerifyAccount />} />
+        <Route path="/residencia" element={<Residence />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/reservation" element={<Reservation />} />
