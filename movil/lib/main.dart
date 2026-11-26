@@ -170,6 +170,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
         );
       case _Stage.landing:
         return LandingScreen(
+          api: _api,
           onLogin: () => _openAuth(register: false),
           onRegister: () => _openAuth(register: true),
         );

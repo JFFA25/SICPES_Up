@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { loginMobile, loginMobileStep1, respondLoginFromWatch, verifyLoginStatus } = require("../controllers/mobile.controller");
-const { getSession } = require("../controllers/auth.controller");
+const { getSession, googleLoginMobile } = require("../controllers/auth.controller");
 const {
   createReservationController,
   getMyReservation,
@@ -24,6 +24,7 @@ const { authLimiter } = require("../middlewares/rateLimiter");
 
 // Native app login returns a bearer token. Keep the two-step watch flow available.
 router.post("/auth/login", authLimiter, loginMobile);
+router.post("/auth/google", authLimiter, googleLoginMobile);
 router.post("/login", authLimiter, loginMobileStep1); // celular: email + password
 router.post("/login/respond", respondLoginFromWatch); // reloj: aprueba/rechaza
 router.post("/login/status", verifyLoginStatus);     // celular: hace polling hasta obtener el token

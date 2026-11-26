@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'api_client.dart';
 
 const _forest = Color(0xFF173D2A);
+const _googleClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({
@@ -27,11 +30,13 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _email = TextEditingController();
-  final _phone = TextEditingController();
   final _password = TextEditingController();
-  final _code = TextEditingController();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const ['email', 'profile'],
+    serverClientId: _googleClientId.isEmpty ? null : _googleClientId,
+  );
   late bool _register = widget.initialRegister;
-  bool _verify = false;
+  bool _awaitingEmailConfirmation = false;
   bool _busy = false;
   bool _obscurePassword = true;
   String? _error;
@@ -41,13 +46,12 @@ class _AuthScreenState extends State<AuthScreen> {
   void dispose() {
     _name.dispose();
     _email.dispose();
-    _phone.dispose();
     _password.dispose();
-    _code.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (_awaitingEmailConfirmation) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _busy = true;
@@ -56,31 +60,22 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      if (_verify) {
-        await widget.api.post(
-          '/verify-otp',
-          authenticated: false,
-          body: {'email': _email.text.trim(), 'code': _code.text.trim()},
-        );
-        setState(() {
-          _verify = false;
-          _register = false;
-          _notice = 'Cuenta verificada. Ya puedes iniciar sesión.';
-        });
-      } else if (_register) {
-        await widget.api.post(
+      if (_register) {
+        final response = await widget.api.post(
           '/register',
           authenticated: false,
           body: {
             'nombre': _name.text.trim(),
             'email': _email.text.trim(),
-            'telefono': _phone.text.trim(),
             'password': _password.text,
           },
         );
         setState(() {
-          _verify = true;
-          _notice = 'Te enviamos un código por SMS para verificar tu cuenta.';
+          _awaitingEmailConfirmation = true;
+          _register = false;
+          _notice = response is Map<String, dynamic>
+              ? (response['message'] ?? 'Revisa tu correo para confirmar la cuenta.').toString()
+              : 'Revisa tu correo para confirmar la cuenta.';
         });
       } else {
         final response = await widget.api.post(
@@ -100,6 +95,91 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } on ApiException catch (error) {
       setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_googleClientId.isEmpty) {
+      setState(() {
+        _error =
+            'Falta configurar GOOGLE_CLIENT_ID al compilar la aplicación.';
+        _notice = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _busy = true;
+      _error = null;
+      _notice = null;
+    });
+
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null) return;
+
+      final googleAuthentication = await account.authentication;
+      final credential = googleAuthentication.idToken;
+      if (credential == null || credential.isEmpty) {
+        throw const ApiException(
+          'Google no devolvió una credencial. Revisa la configuración OAuth de Android.',
+        );
+      }
+
+      final response = await widget.api.post(
+        '/mobile/auth/google',
+        authenticated: false,
+        body: {'credential': credential},
+      );
+      if (response is! Map<String, dynamic> ||
+          response['token'] is! String ||
+          response['user'] is! Map) {
+        throw const ApiException(
+          'La respuesta de inicio de sesión de Google no es válida.',
+        );
+      }
+
+      final user = Map<String, dynamic>.from(response['user'] as Map);
+      await widget.api.saveToken(response['token'] as String);
+      widget.onAuthenticated(user);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on PlatformException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = error.message ?? 'No se pudo iniciar sesión con Google.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resendConfirmation() async {
+    final email = _email.text.trim();
+    setState(() {
+      _busy = true;
+      _error = null;
+      _notice = null;
+    });
+    try {
+      final response = await widget.api.post(
+        '/resend-confirmation',
+        authenticated: false,
+        body: {'email': email},
+      );
+      if (mounted) {
+        setState(
+          () => _notice = response is Map<String, dynamic>
+              ? (response['message'] ?? 'Correo de confirmación reenviado.')
+                    .toString()
+              : 'Correo de confirmación reenviado.',
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -141,13 +221,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _verify
-        ? 'Verifica tu cuenta'
+    final title = _awaitingEmailConfirmation
+        ? 'Revisa tu correo'
         : _register
         ? 'Crea tu cuenta'
         : 'Qué gusto verte de nuevo.';
-    final subtitle = _verify
-        ? 'Ingresa el código que enviamos a tu teléfono.'
+    final subtitle = _awaitingEmailConfirmation
+        ? 'Confirma tu correo para activar la cuenta.'
         : _register
         ? 'Regístrate para solicitar una habitación.'
         : 'Ingresa a tu cuenta para continuar con tu residencia.';
@@ -182,8 +262,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                         const SizedBox(height: 26),
                         Text(
-                          _verify
-                              ? 'VERIFICACIÓN'
+                          _awaitingEmailConfirmation
+                              ? 'CONFIRMACIÓN'
                               : _register
                               ? 'NUEVA CUENTA'
                               : 'INICIAR SESIÓN',
@@ -209,27 +289,48 @@ class _AuthScreenState extends State<AuthScreen> {
                           style: const TextStyle(color: Color(0xFF66766A)),
                         ),
                         const SizedBox(height: 22),
-                        if (_register && !_verify) ...[
-                          TextFormField(
-                            controller: _name,
-                            textCapitalization: TextCapitalization.words,
-                            decoration: const InputDecoration(
-                              labelText: 'Nombre completo',
+                        if (_error != null)
+                          _Message(text: _error!, error: true),
+                        if (_notice != null) _Message(text: _notice!),
+
+                        if (_awaitingEmailConfirmation) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Enviamos un enlace de confirmación a ${_email.text.trim()}.',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Color(0xFF66766A),
+                              height: 1.4,
                             ),
-                            validator: _required,
                           ),
                           const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _phone,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: 'Teléfono',
-                            ),
-                            validator: _required,
+                          OutlinedButton(
+                            onPressed: _busy ? null : _resendConfirmation,
+                            child: const Text('Reenviar correo'),
                           ),
-                          const SizedBox(height: 12),
-                        ],
-                        if (!_verify) ...[
+                          TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => setState(() {
+                                    _awaitingEmailConfirmation = false;
+                                    _register = false;
+                                    _error = null;
+                                    _notice = null;
+                                  }),
+                            child: const Text('Ir a iniciar sesión'),
+                          ),
+                        ] else ...[
+                          if (_register) ...[
+                            TextFormField(
+                              controller: _name,
+                              textCapitalization: TextCapitalization.words,
+                              decoration: const InputDecoration(
+                                labelText: 'Nombre completo',
+                              ),
+                              validator: _required,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           TextFormField(
                             controller: _email,
                             keyboardType: TextInputType.emailAddress,
@@ -275,51 +376,87 @@ class _AuthScreenState extends State<AuthScreen> {
                               return null;
                             },
                           ),
-                        ] else
-                          TextFormField(
-                            controller: _code,
-                            keyboardType: TextInputType.number,
-                            maxLength: 6,
-                            decoration: const InputDecoration(
-                              labelText: 'Código de verificación',
-                              counterText: '',
+                          if (!_register)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _busy ? null : _forgotPassword,
+                                child: const Text('¿Olvidaste tu contraseña?'),
+                              ),
                             ),
-                            validator: _required,
-                          ),
-                        if (!_verify && !_register)
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: _busy ? null : _forgotPassword,
-                              child: const Text('¿Olvidaste tu contraseña?'),
+                          const SizedBox(height: 10),
+                          FilledButton(
+                            onPressed: _busy ? null : _submit,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
                             ),
+                            child: _busy
+                                ? const SizedBox(
+                                    width: 19,
+                                    height: 19,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(_register ? 'Crear cuenta' : 'Entrar'),
                           ),
-                        if (_error != null)
-                          _Message(text: _error!, error: true),
-                        if (_notice != null) _Message(text: _notice!),
-                        const SizedBox(height: 10),
-                        FilledButton(
-                          onPressed: _busy ? null : _submit,
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(48),
-                          ),
-                          child: _busy
-                              ? const SizedBox(
-                                  width: 19,
-                                  height: 19,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                          if (!_register) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Divider()),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    child: Text(
+                                      'O CONTINÚA CON',
+                                      style: TextStyle(
+                                        color: Color(0xFF66766A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: .6,
+                                      ),
+                                    ),
                                   ),
-                                )
-                              : Text(
-                                  _verify
-                                      ? 'Verificar cuenta'
-                                      : _register
-                                      ? 'Crear cuenta'
-                                      : 'Entrar',
+                                  Expanded(child: Divider()),
+                                ],
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _busy ? null : _signInWithGoogle,
+                              icon: const Text(
+                                'G',
+                                style: TextStyle(
+                                  color: Color(0xFF4285F4),
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
                                 ),
-                        ),
-                        if (!_verify)
+                              ),
+                              label: const Text('Continuar con Google'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _forest,
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(
+                                  color: Color(0xFFDDD9CB),
+                                ),
+                                minimumSize: const Size.fromHeight(48),
+                              ),
+                            ),
+                            if (_googleClientId.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Configura GOOGLE_CLIENT_ID para habilitar Google.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF66766A),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                          ],
                           TextButton(
                             onPressed: _busy
                                 ? null
@@ -327,6 +464,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                     _register = !_register;
                                     _error = null;
                                     _notice = null;
+                                    _formKey.currentState?.reset();
                                   }),
                             child: Text(
                               _register
@@ -335,6 +473,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               textAlign: TextAlign.center,
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),

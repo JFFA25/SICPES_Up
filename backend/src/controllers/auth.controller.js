@@ -2,6 +2,7 @@ const { createUser } = require("../models/user.model");
 const { sendConfirmationEmail, sendForgotPasswordEmail } = require("../utils/mailer");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const db = require("../database/db");
 const { OAuth2Client } = require("google-auth-library");
 
@@ -59,6 +60,28 @@ const createUserSession = (req, res, user) => {
   });
 };
 
+const createGoogleLoginResponse = (req, res, user, mobile) => {
+  if (!mobile) return createUserSession(req, res, user);
+
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET no está configurado para la autenticación móvil");
+    return res.status(503).json({ error: "La autenticación móvil no está configurada" });
+  }
+
+  const sessionUser = {
+    id: user.id,
+    nombre: user.nombre,
+    email: user.email,
+    rol: user.rol,
+    foto_perfil_url: user.foto_perfil_url || null,
+  };
+  const token = jwt.sign(sessionUser, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  });
+
+  return res.json({ token, user: sessionUser });
+};
+
 const getGooglePictureUrl = (picture) => {
   if (typeof picture !== "string") return null;
 
@@ -110,7 +133,7 @@ const loginUser = (req, res) => {
   });
 };
 
-const googleLogin = async (req, res) => {
+const googleLogin = async (req, res, mobile = false) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const { credential } = req.body || {};
 
@@ -168,7 +191,7 @@ const googleLogin = async (req, res) => {
 
             existingUser.confirmado = 1;
             existingUser.foto_perfil_url = existingUser.foto_perfil_url || fotoPerfil;
-            return createUserSession(req, res, existingUser);
+            return createGoogleLoginResponse(req, res, existingUser, mobile);
           }
         );
       }
@@ -184,18 +207,20 @@ const googleLogin = async (req, res) => {
             return res.status(500).json({ error: "No se pudo crear la cuenta" });
           }
 
-          return createUserSession(req, res, {
+          return createGoogleLoginResponse(req, res, {
             id: result.insertId,
             nombre,
             email,
             rol: "user",
             foto_perfil_url: fotoPerfil,
-          });
+          }, mobile);
         }
       );
     }
   );
 };
+
+const googleLoginMobile = (req, res) => googleLogin(req, res, true);
 
 const getSession = (req, res) => {
   if (!req.session.user?.id) {
@@ -412,4 +437,4 @@ const checkResetToken = (req, res) => {
   });
 };
 
-module.exports = { loginUser, googleLogin, registerUser, confirmUser, verifyOtp, resendConfirmation, getSession, logoutUser, forgotPassword, resetPassword, checkResetToken };
+module.exports = { loginUser, googleLogin, googleLoginMobile, registerUser, confirmUser, verifyOtp, resendConfirmation, getSession, logoutUser, forgotPassword, resetPassword, checkResetToken };
