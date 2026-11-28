@@ -7,6 +7,7 @@ import StatusPill from "../components/ui/StatusPill";
 import roomIndividual from "../assets/images/room_individual.jpg";
 import roomShared from "../assets/images/room_shared.jpg";
 import { useTimedMessage } from "../hooks/useTimedMessage";
+import { photosOf, useRoomDetails } from "../hooks/useRoomDetails";
 
 interface UserSession {
   id?: number;
@@ -41,6 +42,7 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
   const { message, showError, clear } = useTimedMessage();
+  const { rooms: roomsDetails } = useRoomDetails();
 
   // USUARIO
   const [user, setUser] = useState<UserSession | null>(null);
@@ -225,7 +227,10 @@ const Dashboard = () => {
 
   const showPayment = estado === "aceptada" && paymentMonth !== null;
   const firstName = (user?.nombre || "Usuario").split(" ")[0];
-  const photo = reservation?.tipo === "compartida" ? roomShared : roomIndividual;
+  const reservedRoom = reservation
+    ? roomsDetails.find((room) => String(room.piso) === String(reservation.piso) && String(room.habitacion) === String(reservation.habitacion))
+    : undefined;
+  const photo = reservedRoom ? photosOf(reservedRoom)[0] : reservation?.tipo === "compartida" ? roomShared : roomIndividual;
 
   return (
     <ResidentLayout active="dashboard" userName={user?.nombre} userPhoto={user?.foto_perfil_url}>

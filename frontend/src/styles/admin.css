@@ -591,13 +591,17 @@
   display: grid;
   place-items: center;
   padding: 18px;
+  overflow: hidden;
   background: rgba(15,35,23,.5);
   backdrop-filter: blur(4px);
 }
 .sicpes-admin .admin-modal {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 900px);
-  max-height: min(92vh, 760px);
-  overflow: auto;
+  /* La página está ampliada con zoom (--z): se compensa para que el modal siempre quepa en pantalla. */
+  max-height: min(calc((100vh - 76px) / var(--z, 1) - 24px), 760px);
+  overflow: hidden;
   border: 1px solid #E9E4D7;
   border-radius: 16px;
   background: #FDFBF7;
@@ -608,6 +612,7 @@
   width: min(100%, 560px);
 }
 .sicpes-admin .admin-modal-header {
+  flex: none;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -639,9 +644,14 @@
   cursor: pointer;
 }
 .sicpes-admin .admin-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 17px 19px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .sicpes-admin .admin-modal-footer {
+  flex: none;
   display: flex;
   justify-content: flex-end;
   gap: 8px;

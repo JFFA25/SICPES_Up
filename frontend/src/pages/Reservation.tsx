@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BedDouble, ChevronDown, LoaderCircle, UserRound, UsersRound } from "lucide-react";
+import { BedDouble, ChevronDown, LoaderCircle } from "lucide-react";
 import ResidentLayout from "../components/ResidentLayout";
 import Icon from "../components/ui/Icon";
 import DatePicker, { registerLocale } from "react-datepicker";
@@ -9,6 +9,8 @@ import { es } from "date-fns/locale/es";
 import "react-datepicker/dist/react-datepicker.css";
 import Alert from "../components/Alert";
 import { useTimedMessage } from "../hooks/useTimedMessage";
+import { money, photosOf, useRoomDetails } from "../hooks/useRoomDetails";
+import "../styles/rooms.css";
 
 registerLocale("es", es);
 
@@ -111,12 +113,11 @@ const Reservation = () => {
     habitacion: "",
   });
 
-  const [tipo, setTipo] = useState("");
+  const [tipoFilter, setTipoFilter] = useState<"" | "individual" | "compartida">("");
   const [hasReservation, setHasReservation] = useState(false);
-  const [prices, setPrices] = useState({ individual: 2000, compartida: 1200 });
-  const [occupiedRooms, setOccupiedRooms] = useState<string[]>([]);
-  const [habitacionesPorPiso, setHabitacionesPorPiso] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const { rooms, loading: loadingRooms, error: roomsError, reload: reloadRooms } = useRoomDetails();
   const { message, showError, showSuccess, clear } = useTimedMessage();
 
   useEffect(() => {
@@ -135,53 +136,14 @@ const Reservation = () => {
     fetchSession();
   }, [navigate]);
 
-  // CARGAR HABITACIONES DESDE API
-  useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const res = await fetch(`/api/rooms`);
-        if (res.ok) {
-          const data = await res.json();
-          const rows = Array.isArray(data) ? data : data.lista || [];
-          const formatted: Record<string, string[]> = {};
-          rows.forEach((row: { piso: string; habitaciones: string }) => {
-            formatted[row.piso] = row.habitaciones.split(', ');
-          });
-          setHabitacionesPorPiso(data.agrupado || formatted);
-        } else {
-          console.error("Error cargando habitaciones: respuesta inválida", res.status);
-        }
-      } catch (err) {
-        console.error("Error cargando habitaciones:", err);
-      }
-    };
-
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch(`/api/settings`);
-        if (res.ok) {
-          const data = await res.json();
-          setPrices({
-            individual: data.precioIndividual || 2000,
-            compartida: data.precioCompartida || 1200,
-          });
-        }
-      } catch (err) {
-        console.error("Error cargando precios de configuración:", err);
-      }
-    };
-
-    fetchRooms();
-    fetchSettings();
-  }, []);
-
-  // MONTO
-  const monto =
-    tipo === "individual"
-      ? prices.individual
-      : tipo === "compartida"
-        ? prices.compartida
-        : 0;
+  const floors = Array.from(new Set(rooms.map((room) => room.piso)));
+  const visibleRooms = rooms.filter(
+    (room) => room.piso === form.piso && (!tipoFilter || room.tipo === tipoFilter)
+  );
+  const selectedRoom = rooms.find((room) => room.piso === form.piso && room.habitacion === form.habitacion);
+  const tipo = selectedRoom?.tipo ?? "";
+  const monto = selectedRoom?.precio ?? 0;
+  const photos = photosOf(selectedRoom);
   const fechaIngreso = form.fecha_ingreso
     ? new Date(`${form.fecha_ingreso}T12:00:00`).toLocaleDateString("es-MX", {
         day: "2-digit",
@@ -212,36 +174,6 @@ const Reservation = () => {
     checkReservation();
   }, []);
 
-  // OBTENER HABITACIONES OCUPADAS
-  useEffect(() => {
-    if (!form.piso) return;
-
-    const fetchOccupied = async () => {
-      try {
-        const res = await fetch(
-          `/api/reservation/occupied?piso=${form.piso}`
-        );
-
-        const data = await res.json();
-
-        setOccupiedRooms(data || []);
-
-      } catch (err) {
-        console.error("Error al cargar habitaciones ocupadas:", err);
-      }
-    };
-
-    fetchOccupied();
-  }, [form.piso]);
-
-  // VALIDACIÓN EXTRA
-  useEffect(() => {
-    if (form.habitacion && occupiedRooms.includes(form.habitacion)) {
-      showError("Esta habitación ya está ocupada. Elige otra.");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.habitacion, occupiedRooms]);
-
   // SUBMIT
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,12 +183,12 @@ const Reservation = () => {
       return;
     }
 
-    if (!form.fecha_ingreso || !tipo || !form.piso || !form.habitacion) {
-      showError("Todos los campos son obligatorios");
+    if (!form.fecha_ingreso || !form.piso || !form.habitacion || !selectedRoom) {
+      showError("Elige la fecha, el piso y una habitación.");
       return;
     }
 
-    if (occupiedRooms.includes(form.habitacion)) {
+    if (!selectedRoom.disponible) {
       showError("Esta habitación ya está ocupada. Elige otra.");
       return;
     }
@@ -270,11 +202,8 @@ const Reservation = () => {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          ...form,
-          tipo,
-          monto,
-        }),
+        // El servidor toma el tipo y el precio de la habitación elegida.
+        body: JSON.stringify({ ...form, tipo, monto }),
       });
 
       const data = await res.json();
@@ -282,6 +211,7 @@ const Reservation = () => {
       if (!res.ok) {
         showError(data.error || "No se pudo registrar la reservación.");
         setIsSubmitting(false);
+        void reloadRooms();
         return;
       }
 
@@ -351,79 +281,80 @@ const Reservation = () => {
               />
             </label>
 
-            <fieldset className="mk-reservation-type">
-              <legend className="mk-reservation-label">TIPO DE HABITACIÓN</legend>
-              <div className="mk-reservation-type-options" role="radiogroup" aria-label="Tipo de habitación">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={tipo === "individual"}
-                  disabled={hasReservation}
-                  onClick={() => setTipo("individual")}
-                  className={`mk-reservation-type-option${tipo === "individual" ? " selected" : ""}`}
-                >
-                  <UserRound size={18} />
-                  <span><strong>Individual</strong><small>${prices.individual.toLocaleString("es-MX")} / mes</small></span>
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={tipo === "compartida"}
-                  disabled={hasReservation}
-                  onClick={() => setTipo("compartida")}
-                  className={`mk-reservation-type-option${tipo === "compartida" ? " selected" : ""}`}
-                >
-                  <UsersRound size={18} />
-                  <span><strong>Compartida</strong><small>${prices.compartida.toLocaleString("es-MX")} / mes</small></span>
-                </button>
-              </div>
-            </fieldset>
-
-            <div className="mk-reservation-fields">
-              <div className="mk-field">
-                <span>PISO</span>
-                <CustomDropdown
-                  label="Piso"
-                  options={Object.keys(habitacionesPorPiso).sort().map((pisoNum) => ({
-                    value: pisoNum,
-                    label: `Piso ${pisoNum}`,
-                  }))}
-                  value={form.piso}
-                  onChange={(val) => setForm({ ...form, piso: val, habitacion: "" })}
-                  placeholder="Selecciona un piso"
-                  disabled={hasReservation}
-                />
-              </div>
-
-              <div className="mk-field">
-                <span>HABITACIÓN</span>
-                <CustomDropdown
-                  label="Habitación"
-                  options={
-                    form.piso
-                      ? (habitacionesPorPiso[form.piso] || []).map((hab) => {
-                        const isOccupied = occupiedRooms.map(String).includes(String(hab));
-                        return {
-                          value: hab,
-                          label: isOccupied ? `Habitación ${hab} (Ocupada)` : `Habitación ${hab}`,
-                          disabled: isOccupied,
-                        };
-                      })
-                      : []
-                  }
-                  value={form.habitacion}
-                  onChange={(val) => setForm({ ...form, habitacion: val })}
-                  placeholder={form.piso ? "Selecciona una habitación" : "Primero selecciona un piso"}
-                  disabled={!form.piso || hasReservation}
-                />
-              </div>
+            <div className="mk-field">
+              <span>PISO</span>
+              <CustomDropdown
+                label="Piso"
+                options={floors.map((pisoNum) => ({ value: pisoNum, label: `Piso ${pisoNum}` }))}
+                value={form.piso}
+                onChange={(val) => {
+                  setForm({ ...form, piso: val, habitacion: "" });
+                  setPhotoIndex(0);
+                }}
+                placeholder={loadingRooms ? "Cargando pisos..." : "Selecciona un piso"}
+                disabled={hasReservation || loadingRooms}
+              />
             </div>
 
-            {form.piso && occupiedRooms.length > 0 && (
-              <p className="mk-reservation-hint">
-                Las habitaciones marcadas como ocupadas no estarán disponibles para reservar.
-              </p>
-            )}
+            {roomsError && <p className="mk-reservation-hint">{roomsError}</p>}
+
+            <fieldset className="mk-reservation-type">
+              <legend className="mk-reservation-label">HABITACIÓN</legend>
+              <div className="mk-room-filters" role="group" aria-label="Filtrar por tipo">
+                {([["", "Todas"], ["individual", "Individual"], ["compartida", "Compartida"]] as const).map(([value, label]) => (
+                  <button
+                    key={value || "all"}
+                    type="button"
+                    disabled={hasReservation}
+                    className={`mk-room-filter${tipoFilter === value ? " active" : ""}`}
+                    onClick={() => setTipoFilter(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {!form.piso ? (
+                <p className="mk-reservation-hint">Primero selecciona un piso para ver sus habitaciones.</p>
+              ) : visibleRooms.length === 0 ? (
+                <p className="mk-reservation-hint">No hay habitaciones de ese tipo en este piso.</p>
+              ) : (
+                <div className="mk-room-grid" role="radiogroup" aria-label="Habitaciones disponibles" style={{ marginTop: 10 }}>
+                  {visibleRooms.map((room) => {
+                    const selected = room.habitacion === form.habitacion;
+                    return (
+                      <button
+                        key={room.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        disabled={hasReservation || !room.disponible}
+                        className={`mk-room-card${selected ? " selected" : ""}`}
+                        onClick={() => {
+                          setForm({ ...form, habitacion: room.habitacion });
+                          setPhotoIndex(0);
+                        }}
+                      >
+                        <img className="mk-room-card-photo" src={photosOf(room)[0]} alt={`Habitación ${room.habitacion}`} loading="lazy" />
+                        <span className="mk-room-card-badge">{room.tipo === "compartida" ? "Compartida" : "Individual"}</span>
+                        {!room.disponible && <span className="mk-room-card-full">Ocupada</span>}
+                        <span className="mk-room-card-body">
+                          <strong>Habitación {room.habitacion}</strong>
+                          <small className="mk-room-card-price">{money(room.precio)} / mes</small>
+                          <small>
+                            {room.disponible
+                              ? room.capacidad > 1
+                                ? `${room.cupos} de ${room.capacidad} lugares disponibles`
+                                : "Disponible"
+                              : "Sin lugares disponibles"}
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
 
             <div className="mk-reservation-actions">
               <button
@@ -443,16 +374,42 @@ const Reservation = () => {
 
         <aside className="mk-card mk-reservation-summary">
           <span className="mk-eyebrow">RESUMEN</span>
-          <div className="mk-reservation-image-placeholder" aria-hidden="true" />
+          {selectedRoom ? (
+            <div className="mk-summary-gallery">
+              <div className="mk-summary-photo">
+                <img src={photos[Math.min(photoIndex, photos.length - 1)]} alt={`Habitación ${selectedRoom.habitacion}`} />
+              </div>
+              {photos.length > 1 && (
+                <div className="mk-summary-thumbs">
+                  {photos.map((url, index) => (
+                    <button
+                      key={url}
+                      type="button"
+                      className={index === photoIndex ? "active" : ""}
+                      onClick={() => setPhotoIndex(index)}
+                      aria-label={`Ver foto ${index + 1}`}
+                    >
+                      <img src={url} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mk-summary-empty" style={{ margin: "8px 0 9px" }}>
+              Elige una habitación para ver sus fotos.
+            </div>
+          )}
           <h2>{form.habitacion ? `Habitación ${form.habitacion}` : "Tu habitación"}</h2>
           <p className="mk-reservation-summary-meta">
             {tipo ? (tipo === "individual" ? "Individual" : "Compartida") : "Tipo sin seleccionar"}
             {form.piso ? ` · Piso ${form.piso}` : ""}
           </p>
+          {selectedRoom?.descripcion && <p className="mk-summary-desc">{selectedRoom.descripcion}</p>}
           <div className="mk-reservation-summary-lines">
             <div><span>Fecha de ingreso</span><strong>{fechaIngreso}</strong></div>
-            <div><span>Renta mensual</span><strong>{monto ? `$${monto.toLocaleString("es-MX")}` : "—"}</strong></div>
-            <div className="total"><span>Total al reservar</span><strong>{monto ? `$${monto.toLocaleString("es-MX")}` : "—"}</strong></div>
+            <div><span>Renta mensual</span><strong>{monto ? money(monto) : "—"}</strong></div>
+            <div className="total"><span>Total al reservar</span><strong>{monto ? money(monto) : "—"}</strong></div>
           </div>
           <div className="mk-reservation-note">
             <BedDouble size={15} />

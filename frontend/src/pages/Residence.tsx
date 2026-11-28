@@ -21,12 +21,13 @@ import buildingImg from "../assets/images/building.jpg";
 import towerImg from "../assets/images/departament.webp";
 import individualImg from "../assets/images/room_individual.jpg";
 import sharedImg from "../assets/images/room_shared.jpg";
+import { fallbackPhoto, photosOf, useRoomDetails } from "../hooks/useRoomDetails";
 import "../styles/sicpes-ui.css";
 
 // ── Galería ──────────────────────────────────────────────────────────────────
-// Más adelante estas fotos pueden venir de Cloudinary: solo cambia este arreglo
-// (por ejemplo, llenándolo con una petición al backend).
-const GALLERY = [
+// Las fotos vienen de las habitaciones (las sube el administrador a Cloudinary).
+// Mientras no haya fotos cargadas se muestran estas de respaldo.
+const FALLBACK_GALLERY = [
     { src: individualImg, label: "Habitación individual" },
     { src: sharedImg, label: "Habitación compartida" },
     { src: buildingImg, label: "Fachada" },
@@ -53,62 +54,66 @@ const formatMoney = (value: number) =>
 
 const Residence = () => {
     const [selected, setSelected] = useState(0);
-    const [floors, setFloors] = useState<Record<string, string[]> | null>(null);
-    const [prices, setPrices] = useState<{ individual: number; compartida: number } | null>(null);
-    const [loadError, setLoadError] = useState(false);
+    const { rooms, loading, error } = useRoomDetails();
+    const loadError = Boolean(error);
 
     useEffect(() => {
         document.title = "La residencia | SICPES";
-
-        const load = async () => {
-            try {
-                const [roomsRes, settingsRes] = await Promise.all([fetch("/api/rooms"), fetch("/api/settings")]);
-
-                if (roomsRes.ok) {
-                    const data = await roomsRes.json();
-                    const rows: { piso: string; habitaciones: string }[] = Array.isArray(data) ? data : data.lista || [];
-                    const grouped: Record<string, string[]> = data.agrupado || {};
-                    if (!data.agrupado) {
-                        rows.forEach((row) => {
-                            grouped[row.piso] = row.habitaciones.split(", ");
-                        });
-                    }
-                    setFloors(grouped);
-                } else {
-                    setLoadError(true);
-                }
-
-                if (settingsRes.ok) {
-                    const data = await settingsRes.json();
-                    setPrices({
-                        individual: Number(data.precioIndividual) || 0,
-                        compartida: Number(data.precioCompartida) || 0,
-                    });
-                }
-            } catch {
-                setLoadError(true);
-            }
-        };
-
-        load();
     }, []);
 
-    const floorEntries = useMemo(
-        () => Object.entries(floors ?? {}).sort(([a], [b]) => a.localeCompare(b, "es", { numeric: true })),
-        [floors]
-    );
-    const totalRooms = floorEntries.reduce((sum, [, rooms]) => sum + rooms.length, 0);
-    const lowestPrice = prices ? Math.min(...[prices.individual, prices.compartida].filter((p) => p > 0)) : null;
+    // Pisos: piso → habitaciones
+    const floorEntries = useMemo(() => {
+        const grouped = new Map<string, typeof rooms>();
+        rooms.forEach((room) => grouped.set(room.piso, [...(grouped.get(room.piso) ?? []), room]));
+        return Array.from(grouped.entries());
+    }, [rooms]);
+    const totalRooms = rooms.length;
+
+    // Galería: todas las fotos reales (sin repetir); si no hay, las de respaldo.
+    const gallery = useMemo(() => {
+        const seen = new Set<string>();
+        const photos: { src: string; label: string }[] = [];
+        rooms.forEach((room) =>
+            room.fotos.forEach((photo) => {
+                if (seen.has(photo.url) || photos.length >= 12) return;
+                seen.add(photo.url);
+                photos.push({
+                    src: photo.url,
+                    label: `Habitación ${room.habitacion} · ${room.tipo === "compartida" ? "Compartida" : "Individual"}`,
+                });
+            })
+        );
+        return photos.length ? photos : FALLBACK_GALLERY;
+    }, [rooms]);
+
+    useEffect(() => {
+        if (selected >= gallery.length) setSelected(0);
+    }, [gallery.length, selected]);
+
+    // Precio y foto de cada tipo, tomados de las habitaciones reales
+    const typeInfo = (tipo: "individual" | "compartida") => {
+        const ofType = rooms.filter((room) => room.tipo === tipo);
+        const withPhoto = ofType.find((room) => room.fotos.length > 0);
+        return {
+            price: ofType[0]?.precio,
+            img: withPhoto ? photosOf(withPhoto)[0] : fallbackPhoto(tipo),
+            count: ofType.length,
+        };
+    };
+    const individual = typeInfo("individual");
+    const shared = typeInfo("compartida");
+    const prices = [individual, shared].map((info) => info.price).filter((value): value is number => Boolean(value));
+    const lowestPrice = prices.length ? Math.min(...prices) : null;
 
     const stats = [
-        { icon: Building2, value: floors ? String(floorEntries.length) : "—", label: "Pisos" },
-        { icon: BedDouble, value: floors ? String(totalRooms) : "—", label: "Habitaciones" },
-        { icon: UsersRound, value: "2", label: "Tipos de habitación" },
-        { icon: Zap, value: lowestPrice && Number.isFinite(lowestPrice) ? formatMoney(lowestPrice) : "—", label: "Renta desde / mes" },
+        { icon: Building2, value: !loading ? String(floorEntries.length) : "—", label: "Pisos" },
+        { icon: BedDouble, value: !loading ? String(totalRooms) : "—", label: "Habitaciones" },
+        { icon: UsersRound, value: !loading ? String((individual.count ? 1 : 0) + (shared.count ? 1 : 0)) : "—", label: "Tipos de habitación" },
+        { icon: Zap, value: lowestPrice ? formatMoney(lowestPrice) : "—", label: "Renta desde / mes" },
     ];
 
-    const previous = () => setSelected((i) => (i - 1 + GALLERY.length) % GALLERY.length);
-    const next = () => setSelected((i) => (i + 1) % GALLERY.length);
+    const previous = () => setSelected((i) => (i - 1 + gallery.length) % gallery.length);
+    const next = () => setSelected((i) => (i + 1) % gallery.length);
 
     return (
         <div className="mk-home">
@@ -131,13 +136,13 @@ const Residence = () => {
                 <section aria-label="Galería de la residencia" className="grid gap-4 lg:grid-cols-[1fr_auto]">
                     <div className="relative overflow-hidden rounded-2xl border border-[#E9E4D7] bg-white shadow-sm">
                         <img
-                            key={GALLERY[selected].src}
-                            src={GALLERY[selected].src}
-                            alt={GALLERY[selected].label}
+                            key={gallery[selected].src}
+                            src={gallery[selected].src}
+                            alt={gallery[selected].label}
                             className="h-[320px] w-full object-cover sm:h-[420px]"
                         />
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/55 to-transparent p-4 text-white">
-                            <span className="text-sm font-semibold">{GALLERY[selected].label}</span>
+                            <span className="text-sm font-semibold">{gallery[selected].label}</span>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
@@ -160,9 +165,9 @@ const Residence = () => {
                     </div>
 
                     <div className="flex gap-3 overflow-x-auto lg:w-40 lg:flex-col lg:overflow-visible">
-                        {GALLERY.map((photo, index) => (
+                        {gallery.map((photo, index) => (
                             <button
-                                key={photo.label}
+                                key={photo.src}
                                 type="button"
                                 onClick={() => setSelected(index)}
                                 aria-label={photo.label}
@@ -209,15 +214,15 @@ const Residence = () => {
                         {[
                             {
                                 title: "Individual",
-                                img: individualImg,
-                                price: prices?.individual,
+                                img: individual.img,
+                                price: individual.price,
                                 text: "Tu propio espacio para concentrarte, con total privacidad.",
                                 points: ["Una persona", "Mobiliario completo", "Servicios incluidos"],
                             },
                             {
                                 title: "Compartida",
-                                img: sharedImg,
-                                price: prices?.compartida,
+                                img: shared.img,
+                                price: shared.price,
                                 text: "Comparte habitación y reduce tu renta mensual.",
                                 points: ["Convivencia entre estudiantes", "Mobiliario completo", "Servicios incluidos"],
                             },
@@ -283,7 +288,7 @@ const Residence = () => {
                     <h2 className="mt-3 text-2xl font-bold text-[#173D2A]">Pisos y habitaciones</h2>
 
                     <div className="mt-6 rounded-2xl border border-[#E9E4D7] bg-white p-5 shadow-sm">
-                        {floors === null ? (
+                        {loading ? (
                             <p className="text-sm text-[#66766A]">{loadError ? "No disponible por ahora." : "Cargando distribución…"}</p>
                         ) : floorEntries.length === 0 ? (
                             <p className="text-sm text-[#66766A]">Pronto publicaremos la distribución de pisos.</p>
@@ -298,10 +303,14 @@ const Residence = () => {
                                         <div className="flex flex-wrap gap-2">
                                             {rooms.map((room) => (
                                                 <span
-                                                    key={room}
+                                                    key={room.id}
+                                                    title={room.tipo === "compartida" ? "Compartida" : "Individual"}
                                                     className="rounded-lg border border-[#E9E4D7] bg-[#FCFBF6] px-2.5 py-1 text-xs font-medium text-[#173D2A]"
                                                 >
-                                                    {room}
+                                                    {room.habitacion}
+                                                    <span className="ml-1.5 text-[10px] font-bold uppercase text-[#287A51]">
+                                                        {room.tipo === "compartida" ? "C" : "I"}
+                                                    </span>
                                                 </span>
                                             ))}
                                         </div>

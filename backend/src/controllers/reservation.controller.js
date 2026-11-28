@@ -5,12 +5,19 @@ const {
 } = require("../models/reservation.model");
 const { sendSms } = require("../utils/notifications");
 const { notifyAdmins, notifyReservationOwner } = require("../utils/push");
+const { readSettings } = require("../utils/settingsStore");
+
+const pool = db.promise();
+const CLOSED_STATES = "('cancelada', 'rechazada', 'finalizada')";
 
 
 // CREAR RESERVACIÓN
+// El tipo y el precio salen de la habitación elegida (no del cliente), y la
+// verificación de cupos se hace dentro de una transacción que bloquea la fila
+// de la habitación para que dos personas no puedan apartar el mismo lugar.
 
-const createReservationController = (req, res) => {
-  const { fecha_ingreso, tipo, piso, habitacion, monto } = req.body;
+const createReservationController = async (req, res) => {
+  const { fecha_ingreso, piso, habitacion } = req.body;
 
   // validar sesión
   if (!req.session.user) {
@@ -19,73 +26,90 @@ const createReservationController = (req, res) => {
 
   const usuario_id = req.session.user.id;
 
-  // validar fecha
+  // validar datos y fecha
+  if (!piso || !habitacion || !fecha_ingreso) {
+    return res.status(400).json({ error: "Faltan datos de la reservación" });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(fecha_ingreso))) {
+    return res.status(400).json({ error: "La fecha de ingreso no es válida" });
+  }
   const fechaHoy = new Date().toISOString().split("T")[0];
-
   if (fecha_ingreso < fechaHoy) {
     return res.status(400).json({
       error: "La fecha no puede ser anterior a hoy",
     });
   }
 
-  // validar si ya tiene reservación ACTIVA
-  const sqlUserCheck = "SELECT * FROM tbd_reservaciones WHERE usuario_id = ? AND estado NOT IN ('cancelada', 'rechazada', 'finalizada')";
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-  db.query(sqlUserCheck, [usuario_id], (err, results) => {
-    if (err) {
-      return res.status(500).json({ error: "Error del servidor" });
+    // Bloquea la habitación mientras se valida y se guarda
+    const [rooms] = await connection.query(
+      "SELECT id, tipo, capacidad FROM tbi_habitaciones WHERE piso = ? AND habitacion = ? AND activa = 1 FOR UPDATE",
+      [piso, habitacion]
+    );
+    const room = rooms[0];
+    if (!room) {
+      await connection.rollback();
+      return res.status(404).json({ error: "Esa habitación no está disponible." });
     }
 
-    if (results.length > 0) {
+    // Una sola reservación activa por usuario
+    const [mine] = await connection.query(
+      `SELECT id FROM tbd_reservaciones WHERE usuario_id = ? AND estado NOT IN ${CLOSED_STATES}`,
+      [usuario_id]
+    );
+    if (mine.length > 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: "Ya tienes una reservación registrada" });
+    }
+
+    // Cupos de la habitación
+    const [[{ ocupantes }]] = await connection.query(
+      `SELECT COUNT(*) AS ocupantes FROM tbd_reservaciones
+        WHERE piso = ? AND habitacion = ? AND estado NOT IN ${CLOSED_STATES}`,
+      [piso, habitacion]
+    );
+    if (Number(ocupantes) >= Number(room.capacidad)) {
+      await connection.rollback();
       return res.status(400).json({
-        error: "Ya tienes una reservación registrada",
+        error: "Esta habitación ya está ocupada. Elige otra habitación.",
       });
     }
 
-    // validar si la habitación ya está reservada por otro usuario
-    const sqlRoomCheck = `
-      SELECT * FROM tbd_reservaciones
-      WHERE piso = ?
-      AND habitacion = ?
-      AND estado NOT IN ('cancelada', 'rechazada', 'finalizada')
-    `;
+    // Precio según el tipo real de la habitación
+    const settings = readSettings();
+    const monto = Number(
+      room.tipo === "compartida" ? settings.precioCompartida : settings.precioIndividual
+    ) || 0;
 
-    db.query(sqlRoomCheck, [piso, habitacion], (err, roomResults) => {
-      if (err) {
-        return res.status(500).json({ error: "Error del servidor" });
-      }
+    await connection.query(
+      `INSERT INTO tbd_reservaciones (usuario_id, fecha_ingreso, tipo, piso, habitacion, monto, estado)
+       VALUES (?, ?, ?, ?, ?, ?, 'pendiente')`,
+      [usuario_id, fecha_ingreso, room.tipo, piso, habitacion, monto]
+    );
 
-      if (roomResults.length > 0) {
-        return res.status(400).json({
-          error: "Esta habitación ya está ocupada. Elige otra habitación en el mismo piso.",
-        });
-      }
+    await connection.commit();
+  } catch (error) {
+    if (connection) await connection.rollback().catch(() => {});
+    console.error("Error al crear reservación:", error);
+    return res.status(500).json({ error: "Error al crear reservación" });
+  } finally {
+    if (connection) connection.release();
+  }
 
-      // crear reservación
-      createReservation(
-        { usuario_id, fecha_ingreso, tipo, piso, habitacion, monto },
-        (err) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).json({
-              error: "Error al crear reservación",
-            });
-          }
+  // Aviso push a los administradores (sin await: no retrasa la respuesta)
+  notifyAdmins({
+    tipo: "nueva_reservacion",
+    title: "Nueva solicitud de reservación",
+    body: `${req.session.user.nombre || "Un estudiante"} solicitó el piso ${piso}, habitación ${habitacion}.`,
+    url: "/admin/reservations",
+  });
 
-          // Aviso push a los administradores (sin await: no retrasa la respuesta)
-          notifyAdmins({
-            tipo: "nueva_reservacion",
-            title: "Nueva solicitud de reservación",
-            body: `${req.session.user.nombre || "Un estudiante"} solicitó el piso ${piso}, habitación ${habitacion}.`,
-            url: "/admin/reservations",
-          });
-
-          res.json({
-            message: "Reservación enviada correctamente y está pendiente de revisión",
-          });
-        }
-      );
-    });
+  res.json({
+    message: "Reservación enviada correctamente y está pendiente de revisión",
   });
 };
 
@@ -175,6 +199,7 @@ const updateReservationStatus = (req, res) => {
     return res.status(400).json({ error: "No hay campos por actualizar" });
   }
 
+  const runUpdate = () => {
   const sql = `
     UPDATE tbd_reservaciones 
     SET ${updates.join(", ")}
@@ -226,18 +251,57 @@ const updateReservationStatus = (req, res) => {
       message: "Actualizado correctamente",
     });
   });
+  };
+
+  // Si el admin cambia la habitación, se valida que exista y tenga cupo
+  if (piso !== undefined || habitacion !== undefined) {
+    db.query("SELECT piso, habitacion FROM tbd_reservaciones WHERE id = ?", [id], (findErr, found) => {
+      if (findErr) return res.status(500).json({ error: "Error al actualizar estado" });
+      if (!found[0]) return res.status(404).json({ error: "Reservación no encontrada" });
+
+      const targetFloor = piso !== undefined ? piso : found[0].piso;
+      const targetRoom = habitacion !== undefined ? habitacion : found[0].habitacion;
+
+      db.query(
+        `SELECT h.tipo, h.capacidad,
+                (SELECT COUNT(*) FROM tbd_reservaciones r
+                  WHERE r.piso = h.piso AND r.habitacion = h.habitacion
+                    AND r.estado NOT IN ${CLOSED_STATES} AND r.id <> ?) AS ocupantes
+           FROM tbi_habitaciones h WHERE h.piso = ? AND h.habitacion = ? AND h.activa = 1`,
+        [id, targetFloor, targetRoom],
+        (roomErr, rooms) => {
+          if (roomErr) return res.status(500).json({ error: "Error al actualizar estado" });
+          const target = rooms[0];
+          if (!target) return res.status(400).json({ error: "Esa habitación no existe o está desactivada" });
+          if (Number(target.ocupantes) >= Number(target.capacidad)) {
+            return res.status(400).json({ error: "Esa habitación ya no tiene cupos disponibles" });
+          }
+          updates.push("tipo = ?");
+          values.push(target.tipo);
+          runUpdate();
+        }
+      );
+    });
+  } else {
+    runUpdate();
+  }
 };
 
 
-// OBTENER HABITACIONES OCUPADAS
+// OBTENER HABITACIONES OCUPADAS (llenas) DE UN PISO
+// Una habitación aparece aquí cuando ya no tiene cupos disponibles.
 const getOccupiedRooms = (req, res) => {
   const { piso } = req.query;
 
   const sql = `
-    SELECT habitacion 
-    FROM tbd_reservaciones
-    WHERE piso = ?
-    AND estado NOT IN ('cancelada', 'rechazada', 'finalizada')
+    SELECT h.habitacion
+    FROM tbi_habitaciones h
+    WHERE h.piso = ?
+      AND (
+        SELECT COUNT(*) FROM tbd_reservaciones r
+        WHERE r.piso = h.piso AND r.habitacion = h.habitacion
+          AND r.estado NOT IN ${CLOSED_STATES}
+      ) >= h.capacidad
   `;
 
   db.query(sql, [piso], (err, results) => {
@@ -247,9 +311,7 @@ const getOccupiedRooms = (req, res) => {
       });
     }
 
-    const ocupadas = results.map(r => r.habitacion);
-
-    res.json(ocupadas);
+    res.json(results.map((r) => r.habitacion));
   });
 };
 

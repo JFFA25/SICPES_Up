@@ -1,0 +1,292 @@
+/* ============================================================
+   Habitaciones con fotos: selector del estudiante y edición del admin
+   ============================================================ */
+
+/* ── Selector de habitación (estudiante) ───────────────────── */
+.sicpes-ui .mk-room-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sicpes-ui .mk-room-filter {
+  padding: 6px 11px;
+  border: 1px solid #E9E4D7;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #56685A;
+  font: 600 10px var(--sans);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.sicpes-ui .mk-room-filter:hover { border-color: #B7D3C0; }
+.sicpes-ui .mk-room-filter.active {
+  border-color: #287A51;
+  background: #E3F3E6;
+  color: #217048;
+}
+.sicpes-ui .mk-room-filter:disabled { opacity: .5; cursor: not-allowed; }
+
+.sicpes-ui .mk-room-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.sicpes-ui .mk-room-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #E9E4D7;
+  border-radius: 11px;
+  background: #FFFFFF;
+  color: #173D2A;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease), border-color .18s;
+}
+.sicpes-ui .mk-room-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(23,61,42,.1);
+}
+.sicpes-ui .mk-room-card.selected {
+  border-color: #287A51;
+  box-shadow: 0 0 0 2px rgba(40,122,81,.18);
+}
+.sicpes-ui .mk-room-card:disabled { cursor: not-allowed; }
+.sicpes-ui .mk-room-card:disabled .mk-room-card-photo { filter: grayscale(.9); opacity: .55; }
+.sicpes-ui .mk-room-card-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #F1EFE6;
+}
+.sicpes-ui .mk-room-card-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.94);
+  color: #217048;
+  font: 700 8px var(--mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.sicpes-ui .mk-room-card-full {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #A93830;
+  color: #FFFFFF;
+  font: 700 8px var(--mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.sicpes-ui .mk-room-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 10px 10px;
+}
+.sicpes-ui .mk-room-card-body strong { font-size: 11px; }
+.sicpes-ui .mk-room-card-body small { color: #66766A; font-size: 9px; }
+.sicpes-ui .mk-room-card-price { color: #217048; font-weight: 700; }
+
+/* ── Galería del resumen ────────────────────────────────────── */
+.sicpes-ui .mk-summary-gallery { margin: 8px 0 9px; }
+.sicpes-ui .mk-summary-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #F1EFE6;
+}
+.sicpes-ui .mk-summary-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+.sicpes-ui .mk-summary-thumbs {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+  overflow-x: auto;
+}
+.sicpes-ui .mk-summary-thumbs button {
+  flex: none;
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  opacity: .7;
+}
+.sicpes-ui .mk-summary-thumbs button.active { border-color: #287A51; opacity: 1; }
+.sicpes-ui .mk-summary-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sicpes-ui .mk-summary-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  border: 1px dashed #D8E6DA;
+  border-radius: 9px;
+  background: #F8FBF7;
+  color: #7A8C7F;
+  font-size: 9px;
+  text-align: center;
+  padding: 10px;
+}
+.sicpes-ui .mk-summary-desc { margin: 0 0 10px; color: #5F7065; font-size: 9px; line-height: 1.45; }
+
+@media (max-width: 560px) {
+  .sicpes-ui .mk-room-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Admin: tarjetas de piso con habitaciones editables ────── */
+.sicpes-admin .admin-room-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border: 1px solid #E4E0D2;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #35533F;
+  font: 600 9px var(--sans);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.sicpes-admin .admin-room-chip:hover { border-color: #287A51; background: #F1FAF3; }
+.sicpes-admin .admin-room-chip.occupied { background: #FFF6E6; border-color: #F1DDB0; color: #8A5B00; }
+.sicpes-admin .admin-room-chip.inactive { opacity: .5; text-decoration: line-through; }
+.sicpes-admin .admin-room-chip i {
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #E3F3E6;
+  color: #217048;
+  font-size: 7px;
+  font-weight: 700;
+}
+.sicpes-admin .admin-room-chip svg { width: 10px; height: 10px; }
+.sicpes-admin .admin-room-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* ── Admin: modal de edición de habitación ─────────────────── */
+.sicpes-admin .admin-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.sicpes-admin .admin-edit-grid .full { grid-column: 1 / -1; }
+.sicpes-admin .admin-field select,
+.sicpes-admin .admin-field input[type="number"],
+.sicpes-admin .admin-field input[type="text"],
+.sicpes-admin .admin-field textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #E4E0D2;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #173D2A;
+  font-size: 11px;
+}
+.sicpes-admin .admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+  color: #35533F;
+  font-size: 10px;
+  cursor: pointer;
+}
+.sicpes-admin .admin-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+}
+.sicpes-admin .admin-photo {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #E4E0D2;
+  border-radius: 9px;
+  background: #F1EFE6;
+}
+.sicpes-admin .admin-photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.sicpes-admin .admin-photo-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 5px;
+  background: #FFFFFF;
+}
+.sicpes-admin .admin-photo-actions button {
+  flex: 1;
+  padding: 4px 0;
+  border: 1px solid #E4E0D2;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #35533F;
+  font-size: 8px;
+  cursor: pointer;
+}
+.sicpes-admin .admin-photo-actions button.danger { color: #A93830; }
+.sicpes-admin .admin-photo-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.sicpes-admin .admin-photo-cover {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #287A51;
+  color: #FFFFFF;
+  font: 700 7px var(--mono);
+  letter-spacing: .05em;
+}
+.sicpes-admin .admin-photo-add {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 96px;
+  border: 1.5px dashed #B7D3C0;
+  border-radius: 9px;
+  background: #F8FBF7;
+  color: #287A51;
+  font-size: 9px;
+  text-align: center;
+  cursor: pointer;
+}
+.sicpes-admin .admin-photo-add:hover { background: #EEF7F0; }
+.sicpes-admin .admin-photo-add.busy { opacity: .6; pointer-events: none; }
+.sicpes-admin .admin-modal-danger {
+  margin-right: auto;
+}
+.sicpes-admin .admin-link-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+@media (max-width: 560px) {
+  .sicpes-admin .admin-edit-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Opciones de habitación en el modal de asignar */
+.sicpes-admin .admin-room-options .admin-room-option { align-items: center; justify-content: flex-start; text-align: left; }
+.sicpes-admin .admin-room-thumb { width: 38px; height: 38px; flex: none; border-radius: 7px; object-fit: cover; }
+.sicpes-admin .admin-room-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sicpes-admin .admin-room-option-text strong { font-size: 9px; color: #1D432D; }
+.sicpes-admin .admin-room-options { max-height: 230px; overflow-y: auto; padding-right: 2px; overscroll-behavior: contain; }
+.sicpes-admin .admin-room-options .admin-room-option { justify-content: flex-start; }
+.sicpes-admin .admin-modal-backdrop { padding-top: calc(76px / var(--z, 1) + 10px); padding-bottom: 10px; }

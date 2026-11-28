@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AdminNavbar from "../components/admin/AdminNavbar";
 import Alert from "../components/Alert";
 import Icon from "../components/ui/Icon";
@@ -97,6 +97,15 @@ const AdminSettings = () => {
           </div>
           <span className="admin-settings-badge"><Icon name="shield" size={14} /> Ajustes del sistema</span>
         </header>
+
+        <section className="admin-panel admin-link-card" style={{ marginBottom: 12 }}>
+          <div>
+            <span className="admin-eyebrow">HABITACIONES Y FOTOS</span>
+            <h2 style={{ margin: "4px 0" }}>Fotos, tipo y capacidad de cada habitación</h2>
+            <p style={{ margin: 0 }}>Se editan por habitación en Pisos. Los cambios se reflejan al instante en "La residencia" y al reservar.</p>
+          </div>
+          <Link to="/admin/floors" className="admin-btn"><Icon name="building" size={14} /> Ir a Pisos</Link>
+        </section>
 
         {loading ? (
           <div className="admin-list"><div className="admin-empty">Cargando configuraciones...</div></div>

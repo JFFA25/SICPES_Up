@@ -6,6 +6,9 @@ import ConfirmModal from "../components/ConfirmModal";
 import Pagination from "../components/admin/Pagination";
 import Icon from "../components/ui/Icon";
 import { useTimedMessage } from "../hooks/useTimedMessage";
+import { photosOf, useRoomDetails } from "../hooks/useRoomDetails";
+import type { RoomDetail } from "../hooks/useRoomDetails";
+import "../styles/rooms.css";
 
 interface Reservation {
   id: number;
@@ -19,11 +22,6 @@ interface Reservation {
   monto: string | number | null;
   estado: string;
   motivo_rechazo?: string | null;
-}
-
-interface FloorRooms {
-  piso: string | number;
-  habitaciones: string;
 }
 
 const FILTERS = [
@@ -59,7 +57,7 @@ const statusClass = (status: string) => {
 const AdminReservations = () => {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [floors, setFloors] = useState<FloorRooms[]>([]);
+  const { rooms: allRooms, reload: reloadRooms } = useRoomDetails(true);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["value"]>("all");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,21 +85,9 @@ const AdminReservations = () => {
     }
   };
 
-  const fetchFloors = async () => {
-    try {
-      const response = await fetch("/api/rooms", { credentials: "include" });
-      if (!response.ok) throw new Error("No se pudieron cargar las habitaciones.");
-      const data = await response.json();
-      setFloors(Array.isArray(data.lista) ? data.lista : []);
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "No se pudieron cargar las habitaciones.");
-    }
-  };
-
   useEffect(() => {
     document.title = "Reservaciones | Panel administrativo";
     fetchReservations();
-    fetchFloors();
     // Las funciones de carga se disparan una vez al montar la página.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -127,21 +113,26 @@ const AdminReservations = () => {
 
   const itemsPerPage = 8;
   const currentItems = filteredReservations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const roomNames = floors.find((floor) => String(floor.piso) === selectedFloor)?.habitaciones
-    .split(",").map((room) => room.trim()).filter(Boolean) || [];
-  const availableRooms = roomNames.filter((room) => !reservations.some((item) =>
-    item.id !== assignment?.id &&
-    item.estado === "aceptada" &&
-    String(item.piso) === selectedFloor &&
-    String(item.habitacion) === room
-  ));
+  const floors = useMemo(() => {
+    const grouped = new Map<string, RoomDetail[]>();
+    allRooms.filter((room) => room.activa).forEach((room) => grouped.set(room.piso, [...(grouped.get(room.piso) ?? []), room]));
+    return Array.from(grouped.entries());
+  }, [allRooms]);
+  const floorRooms = floors.find(([floor]) => floor === selectedFloor)?.[1] ?? [];
+  const isCurrentRoom = (room: RoomDetail) =>
+    !!assignment &&
+    !["cancelada", "rechazada", "finalizada"].includes(assignment.estado) &&
+    String(assignment.piso) === room.piso &&
+    String(assignment.habitacion) === room.habitacion;
+  const freeSpots = (room: RoomDetail) => Math.max(room.capacidad - (room.ocupantes - (isCurrentRoom(room) ? 1 : 0)), 0);
+  const availableRooms = floorRooms.filter((room) => freeSpots(room) > 0).map((room) => room.habitacion);
 
   const openAssignment = (item: Reservation) => {
-    const initialFloor = item.piso ? String(item.piso) : String(floors[0]?.piso ?? "");
+    const initialFloor = item.piso ? String(item.piso) : (floors[0]?.[0] ?? "");
     setAssignment(item);
     setSelectedFloor(initialFloor);
     setSelectedRoom(item.habitacion ? String(item.habitacion) : "");
-    setAmount(Number(item.monto) || (item.tipo === "compartida" ? 1800 : 2500));
+    setAmount(Number(item.monto) || 0);
   };
 
   const updateReservation = async (id: number, payload: Record<string, unknown>, successText: string) => {
@@ -155,7 +146,7 @@ const AdminReservations = () => {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "No se pudo actualizar la reservación.");
       showSuccess(successText);
-      await fetchReservations();
+      await Promise.all([fetchReservations(), reloadRooms()]);
       return true;
     } catch (error) {
       showError(error instanceof Error ? error.message : "No se pudo actualizar la reservación.");
@@ -318,22 +309,30 @@ const AdminReservations = () => {
                     <span>Piso</span>
                     <select value={selectedFloor} onChange={(event) => { setSelectedFloor(event.target.value); setSelectedRoom(""); }}>
                       <option value="">Selecciona un piso</option>
-                      {floors.map((floor) => <option key={floor.piso} value={String(floor.piso)}>Piso {floor.piso}</option>)}
+                      {floors.map(([floor]) => <option key={floor} value={floor}>Piso {floor}</option>)}
                     </select>
                   </label>
-                  {roomNames.length ? (
+                  {floorRooms.length ? (
                     <div className="admin-room-options">
-                      {roomNames.map((room) => {
-                        const isAvailable = availableRooms.includes(room);
+                      {floorRooms.map((room) => {
+                        const free = freeSpots(room);
+                        const cover = photosOf(room)[0];
                         return (
                           <button
-                            key={room}
+                            key={room.id}
                             type="button"
-                            className={`admin-room-option${selectedRoom === room ? " selected" : ""}`}
-                            disabled={!isAvailable}
-                            onClick={() => setSelectedRoom(room)}
+                            className={`admin-room-option${selectedRoom === room.habitacion ? " selected" : ""}`}
+                            disabled={free === 0}
+                            onClick={() => {
+                              setSelectedRoom(room.habitacion);
+                              setAmount(room.precio || amount);
+                            }}
                           >
-                            <span>Habitación {room}</span><small>{isAvailable ? "Disponible" : "Ocupada"}</small>
+                            <img className="admin-room-thumb" src={cover} alt="" loading="lazy" />
+                            <span className="admin-room-option-text">
+                              <strong>Habitación {room.habitacion}</strong>
+                              <small>{room.tipo === "compartida" ? "Compartida" : "Individual"} · {free === 0 ? "Ocupada" : `${free} de ${room.capacidad} libre${free === 1 ? "" : "s"}`}</small>
+                            </span>
                           </button>
                         );
                       })}
