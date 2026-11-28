@@ -24,8 +24,27 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
-  int _section = 0;
+class _HomeShellState extends State<HomeShell>
+    with SingleTickerProviderStateMixin {
+  int _sectionValue = 0;
+  late final AnimationController _transition = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 320),
+    value: 1,
+  );
+
+  int get _section => _sectionValue;
+  set _section(int value) {
+    if (value == _sectionValue) return;
+    _sectionValue = value;
+    _transition.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _transition.dispose();
+    super.dispose();
+  }
 
   bool get _isAdmin => widget.user['rol'] == 'admin';
 
@@ -117,7 +136,24 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ),
           Expanded(
-            child: IndexedStack(index: _section, children: _pages),
+            child: FadeTransition(
+              opacity: CurvedAnimation(
+                parent: _transition,
+                curve: Curves.easeOut,
+              ),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, .03),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _transition,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+                child: IndexedStack(index: _section, children: _pages),
+              ),
+            ),
           ),
         ],
       ),

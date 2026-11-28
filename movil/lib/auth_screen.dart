@@ -31,6 +31,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirm = TextEditingController();
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: const ['email', 'profile'],
     serverClientId: _googleClientId.isEmpty ? null : _googleClientId,
@@ -39,6 +40,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _awaitingEmailConfirmation = false;
   bool _busy = false;
   bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  bool _acceptedTerms = false;
   String? _error;
   String? _notice;
 
@@ -47,12 +50,17 @@ class _AuthScreenState extends State<AuthScreen> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_awaitingEmailConfirmation) return;
     if (!_formKey.currentState!.validate()) return;
+    if (_register && !_acceptedTerms) {
+      setState(() => _error = 'Acepta los términos y el aviso de privacidad para continuar.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -376,6 +384,50 @@ class _AuthScreenState extends State<AuthScreen> {
                               return null;
                             },
                           ),
+                          if (_register) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _confirm,
+                              obscureText: _obscureConfirm,
+                              autofillHints: const [AutofillHints.newPassword],
+                              decoration: InputDecoration(
+                                labelText: 'Repetir contraseña',
+                                suffixIcon: IconButton(
+                                  onPressed: () => setState(
+                                    () => _obscureConfirm = !_obscureConfirm,
+                                  ),
+                                  icon: Icon(
+                                    _obscureConfirm
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                final required = _required(value);
+                                if (required != null) return required;
+                                return value == _password.text
+                                    ? null
+                                    : 'Las contraseñas no coinciden.';
+                              },
+                            ),
+                            const SizedBox(height: 4),
+                            CheckboxListTile(
+                              value: _acceptedTerms,
+                              onChanged: _busy
+                                  ? null
+                                  : (value) => setState(
+                                      () => _acceptedTerms = value ?? false,
+                                    ),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              dense: true,
+                              title: const Text(
+                                'Acepto los términos y condiciones y el aviso de privacidad.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
                           if (!_register)
                             Align(
                               alignment: Alignment.centerRight,
@@ -400,19 +452,21 @@ class _AuthScreenState extends State<AuthScreen> {
                                   )
                                 : Text(_register ? 'Crear cuenta' : 'Entrar'),
                           ),
-                          if (!_register) ...[
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 14),
+                          ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               child: Row(
                                 children: [
-                                  Expanded(child: Divider()),
+                                  const Expanded(child: Divider()),
                                   Padding(
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 12,
                                     ),
                                     child: Text(
-                                      'O CONTINÚA CON',
-                                      style: TextStyle(
+                                      _register
+                                          ? 'O REGÍSTRATE CON'
+                                          : 'O CONTINÚA CON',
+                                      style: const TextStyle(
                                         color: Color(0xFF66766A),
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700,
@@ -420,11 +474,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                       ),
                                     ),
                                   ),
-                                  Expanded(child: Divider()),
+                                  const Expanded(child: Divider()),
                                 ],
                               ),
                             ),
                             _GoogleButton(
+                              label: _register
+                                  ? 'Registrarse con Google'
+                                  : 'Continuar con Google',
                               busy: _busy,
                               onPressed: _signInWithGoogle,
                             ),
@@ -515,8 +572,13 @@ class _Message extends StatelessWidget {
 
 /// Botón "Continuar con Google" con el logotipo oficial de Google.
 class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.busy, required this.onPressed});
+  const _GoogleButton({
+    required this.label,
+    required this.busy,
+    required this.onPressed,
+  });
 
+  final String label;
   final bool busy;
   final VoidCallback onPressed;
 
@@ -555,7 +617,7 @@ class _GoogleButton extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                'Continuar con Google',
+                label,
                 style: TextStyle(
                   color: busy ? const Color(0xFF9AA0A6) : const Color(0xFF3C4043),
                   fontSize: 15,

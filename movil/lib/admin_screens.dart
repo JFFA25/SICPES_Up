@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'file_picker_helper.dart';
 import 'sicpes_widgets.dart';
 
 class AdminReservationsScreen extends StatefulWidget {
@@ -71,10 +72,22 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
 
   Future<void> _assign(Map<String, dynamic> reservation) async {
     try {
-      final response = await widget.api.get('/mobile/rooms');
-      final floors = mapList(
-        response is Map<String, dynamic> ? response['lista'] : null,
-      );
+      final allRooms = mapList(
+        await widget.api.get('/mobile/admin/rooms/details'),
+      ).where((room) => _asInt(room['activa']) == 1).toList();
+      final floorNumbers = allRooms.map((r) => r['piso'].toString()).toSet().toList()
+        ..sort((a, b) => _asInt(a).compareTo(_asInt(b)));
+      final floors = [
+        for (final number in floorNumbers) <String, dynamic>{'piso': number},
+      ];
+      final currentIsActive = !{'cancelada', 'rechazada', 'finalizada'}
+          .contains((reservation['estado'] ?? '').toString());
+      int freeSpots(Map<String, dynamic> room) {
+        final mine = currentIsActive &&
+            reservation['piso']?.toString() == room['piso'].toString() &&
+            reservation['habitacion']?.toString() == room['habitacion'].toString();
+        return _asInt(room['capacidad']) - (_asInt(room['ocupantes']) - (mine ? 1 : 0));
+      }
       if (!mounted) return;
       if (floors.isEmpty) {
         _showMessage('No hay pisos registrados para asignar.');
@@ -97,24 +110,13 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) {
-            final floor = floors.firstWhere(
-              (item) => item['piso'].toString() == selectedFloor,
-            );
-            final roomNames = (floor['habitaciones'] ?? '')
-                .toString()
-                .split(',')
-                .map((room) => room.trim())
-                .where((room) => room.isNotEmpty)
-                .where(
-                  (room) => !_reservations.any(
-                    (item) =>
-                        item['id'] != reservation['id'] &&
-                        item['estado'] == 'aceptada' &&
-                        item['piso'].toString() == selectedFloor &&
-                        item['habitacion'].toString() == room,
-                  ),
-                )
+            final floorRooms = allRooms
+                .where((room) => room['piso'].toString() == selectedFloor)
                 .toList();
+            final roomNames = [
+              for (final room in floorRooms)
+                if (freeSpots(room) > 0) room['habitacion'].toString(),
+            ];
             if (!roomNames.contains(selectedRoom)) {
               selectedRoom = roomNames.isEmpty ? '' : roomNames.first;
             }
@@ -155,14 +157,27 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                         labelText: 'Habitación',
                       ),
                       items: [
-                        for (final room in roomNames)
+                        for (final room in floorRooms.where(
+                          (r) => roomNames.contains(r['habitacion'].toString()),
+                        ))
                           DropdownMenuItem(
-                            value: room,
-                            child: Text('Habitación $room'),
+                            value: room['habitacion'].toString(),
+                            child: Text(
+                              'Habitación ${room['habitacion']} · ${room['tipo'] == 'compartida' ? 'Compartida' : 'Individual'} · ${freeSpots(room)} libre${freeSpots(room) == 1 ? '' : 's'}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                       ],
-                      onChanged: (value) =>
-                          setDialogState(() => selectedRoom = value ?? ''),
+                      isExpanded: true,
+                      onChanged: (value) => setDialogState(() {
+                        selectedRoom = value ?? '';
+                        final picked = floorRooms.where(
+                          (r) => r['habitacion'].toString() == selectedRoom,
+                        );
+                        if (picked.isNotEmpty && _asInt(picked.first['precio']) > 0) {
+                          amount.text = _asInt(picked.first['precio']).toString();
+                        }
+                      }),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -676,8 +691,16 @@ class AdminFloorsScreen extends StatefulWidget {
   State<AdminFloorsScreen> createState() => _AdminFloorsScreenState();
 }
 
+int _asInt(Object? value) =>
+    value is bool ? (value ? 1 : 0) : int.tryParse((value ?? '').toString()) ?? 0;
+
+List<Map<String, dynamic>> _photosOf(Map<String, dynamic> room) => [
+  for (final photo in (room['fotos'] is List ? room['fotos'] as List : []))
+    if (photo is Map) Map<String, dynamic>.from(photo),
+];
+
 class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
-  List<Map<String, dynamic>> _floors = [];
+  List<Map<String, dynamic>> _rooms = [];
   String? _error;
   bool _loading = true;
 
@@ -693,10 +716,7 @@ class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
       _error = null;
     });
     try {
-      final result = await widget.api.get('/mobile/rooms');
-      _floors = mapList(
-        result is Map<String, dynamic> ? result['lista'] : result,
-      );
+      _rooms = mapList(await widget.api.get('/mobile/admin/rooms/details'));
     } on ApiException catch (error) {
       _error = error.message;
     } finally {
@@ -704,65 +724,114 @@ class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
     }
   }
 
-  Future<void> _addFloor() async {
-    final floor = TextEditingController();
+  List<MapEntry<String, List<Map<String, dynamic>>>> get _floors {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final room in _rooms) {
+      grouped.putIfAbsent(room['piso'].toString(), () => []).add(room);
+    }
+    final entries = grouped.entries.toList()
+      ..sort((a, b) => _asInt(a.key).compareTo(_asInt(b.key)));
+    return entries;
+  }
+
+  Future<void> _addRooms({String? floorNumber}) async {
+    final floor = TextEditingController(text: floorNumber ?? '');
     final rooms = TextEditingController();
-    final values = await showDialog<List<String>>(
+    final capacity = TextEditingController(text: '1');
+    var type = 'individual';
+    final approved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Agregar habitaciones'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: floor,
-              decoration: const InputDecoration(labelText: 'Piso'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Agregar habitaciones'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: floor,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Piso'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: rooms,
+                  decoration: const InputDecoration(
+                    labelText: 'Habitaciones',
+                    hintText: '101, 102, 103',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: type,
+                  decoration: const InputDecoration(labelText: 'Tipo'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'individual',
+                      child: Text('Individual'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'compartida',
+                      child: Text('Compartida'),
+                    ),
+                  ],
+                  onChanged: (value) => setDialogState(() {
+                    type = value ?? 'individual';
+                    capacity.text = type == 'compartida' ? '2' : '1';
+                  }),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: capacity,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Capacidad (personas)',
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: rooms,
-              decoration: const InputDecoration(
-                labelText: 'Habitaciones',
-                hintText: '101, 102, 103',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Guardar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, [
-              floor.text.trim(),
-              rooms.text.trim(),
-            ]),
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
+    final values = [floor.text.trim(), rooms.text.trim(), capacity.text.trim()];
     floor.dispose();
     rooms.dispose();
-    if (values == null || values.any((value) => value.isEmpty)) return;
+    capacity.dispose();
+    if (approved != true || values[0].isEmpty || values[1].isEmpty) return;
     try {
       await widget.api.post(
         '/mobile/admin/rooms',
-        body: {'piso': values[0], 'habitaciones': values[1]},
+        body: {
+          'piso': values[0],
+          'habitaciones': values[1],
+          'tipo': type,
+          'capacidad': _asInt(values[2]).clamp(1, 6),
+        },
       );
+      _showMessage('Habitaciones guardadas.');
       await _load();
     } on ApiException catch (error) {
       _showMessage(error.message);
     }
   }
 
-  Future<void> _removeFloor(Map<String, dynamic> floor) async {
+  Future<void> _removeFloor(String floor) async {
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar piso'),
-        content: Text('¿Eliminar el piso ${floor['piso']} y sus habitaciones?'),
+        content: Text('¿Eliminar el piso $floor y todas sus habitaciones?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -777,11 +846,23 @@ class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
     );
     if (approved != true) return;
     try {
-      await widget.api.delete('/mobile/admin/rooms/${floor['piso']}');
+      await widget.api.delete('/mobile/admin/rooms/$floor');
       await _load();
     } on ApiException catch (error) {
       _showMessage(error.message);
     }
+  }
+
+  Future<void> _editRoom(Map<String, dynamic> room) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (_) => _RoomEditorSheet(api: widget.api, roomId: room['id']),
+    );
+    if (mounted) await _load();
   }
 
   void _showMessage(String message) {
@@ -793,27 +874,37 @@ class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading && _floors.isEmpty) return const LoadingView();
+    if (_loading && _rooms.isEmpty) return const LoadingView();
+    final active = _rooms.where((room) => _asInt(room['activa']) == 1);
+    final spots = active.fold<int>(0, (t, r) => t + _asInt(r['capacidad']));
+    final free = active.fold<int>(0, (t, r) => t + _asInt(r['cupos']));
     return RefreshIndicator(
       onRefresh: _load,
       child: PageBody(
         title: 'Pisos',
-        subtitle: 'Administra habitaciones disponibles en la residencia.',
+        subtitle: 'Edita tipo, capacidad y fotos de cada habitación.',
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _addFloor,
-              icon: const Icon(Icons.add),
-              label: const Text('Agregar habitaciones'),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$free de $spots lugares disponibles',
+                  style: const TextStyle(color: mutedGreen, fontSize: 12),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _addRooms,
+                icon: const Icon(Icons.add),
+                label: const Text('Agregar'),
+              ),
+            ],
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),
             InlineError(_error!),
           ],
           const SizedBox(height: 8),
-          if (_floors.isEmpty)
+          if (_rooms.isEmpty)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(22),
@@ -821,27 +912,515 @@ class _AdminFloorsScreenState extends State<AdminFloorsScreen> {
               ),
             )
           else
-            for (final floor in _floors)
+            for (final entry in _floors)
               Card(
-                margin: const EdgeInsets.only(bottom: 9),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFEAF6EC),
-                    child: Icon(Icons.apartment, color: brandGreen),
-                  ),
-                  title: Text('Piso ${floor['piso']}'),
-                  subtitle: Text((floor['habitaciones'] ?? '').toString()),
-                  trailing: IconButton(
-                    tooltip: 'Eliminar piso',
-                    onPressed: () => _removeFloor(floor),
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFFA93830),
-                    ),
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 6, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Color(0xFFEAF6EC),
+                            child: Icon(
+                              Icons.apartment,
+                              color: brandGreen,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Piso ${entry.key}',
+                              style: const TextStyle(
+                                color: forestGreen,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Agregar habitaciones al piso',
+                            onPressed: () => _addRooms(floorNumber: entry.key),
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                          IconButton(
+                            tooltip: 'Eliminar piso',
+                            onPressed:
+                                entry.value.any((r) => _asInt(r['ocupantes']) > 0)
+                                ? null
+                                : () => _removeFloor(entry.key),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Color(0xFFA93830),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final room in entry.value)
+                            _RoomChip(
+                              room: room,
+                              onTap: () => _editRoom(room),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Text(
+              'I = individual · C = compartida · amarillo = con reservaciones activas. Toca una habitación para editarla.',
+              style: TextStyle(color: mutedGreen, fontSize: 11),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _RoomChip extends StatelessWidget {
+  const _RoomChip({required this.room, required this.onTap});
+
+  final Map<String, dynamic> room;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final occupied = _asInt(room['ocupantes']) > 0;
+    final inactive = _asInt(room['activa']) != 1;
+    final hasPhotos = _photosOf(room).isNotEmpty;
+    return Opacity(
+      opacity: inactive ? .5 : 1,
+      child: Material(
+        color: occupied ? const Color(0xFFFFF3D8) : const Color(0xFFEAF6EC),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  room['habitacion'].toString(),
+                  style: TextStyle(
+                    color: occupied ? const Color(0xFF8A5B00) : forestGreen,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  room['tipo'] == 'compartida' ? 'C' : 'I',
+                  style: const TextStyle(
+                    color: mutedGreen,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (hasPhotos) ...[
+                  const SizedBox(width: 4),
+                  const Icon(Icons.photo_outlined, size: 12, color: brandGreen),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hoja inferior para editar una habitación y administrar sus fotos.
+class _RoomEditorSheet extends StatefulWidget {
+  const _RoomEditorSheet({required this.api, required this.roomId});
+
+  final ApiClient api;
+  final Object? roomId;
+
+  @override
+  State<_RoomEditorSheet> createState() => _RoomEditorSheetState();
+}
+
+class _RoomEditorSheetState extends State<_RoomEditorSheet> {
+  Map<String, dynamic>? _room;
+  final _capacity = TextEditingController();
+  final _description = TextEditingController();
+  String _type = 'individual';
+  bool _active = true;
+  bool _busy = false;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload(fillForm: true);
+  }
+
+  @override
+  void dispose() {
+    _capacity.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reload({bool fillForm = false}) async {
+    try {
+      final rooms = mapList(
+        await widget.api.get('/mobile/admin/rooms/details'),
+      );
+      final room = rooms.firstWhere(
+        (item) => item['id'].toString() == widget.roomId.toString(),
+        orElse: () => <String, dynamic>{},
+      );
+      if (room.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+      _room = room;
+      if (fillForm) {
+        _type = room['tipo'].toString();
+        _capacity.text = _asInt(room['capacidad']).toString();
+        _description.text = (room['descripcion'] ?? '').toString();
+        _active = _asInt(room['activa']) == 1;
+      }
+    } on ApiException catch (error) {
+      _error = error.message;
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await action();
+    } on ApiException catch (error) {
+      _error = error.message;
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _save() => _run(() async {
+    await widget.api.put(
+      '/mobile/admin/rooms/${widget.roomId}',
+      body: {
+        'tipo': _type,
+        'capacidad': _asInt(_capacity.text).clamp(1, 6),
+        'descripcion': _description.text.trim(),
+        'activa': _active,
+      },
+    );
+    if (mounted) Navigator.pop(context);
+  });
+
+  Future<void> _addPhoto() async {
+    final file = await pickFile();
+    if (file == null) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setState(() => _error = 'La foto pesa más de 5 MB.');
+      return;
+    }
+    await _run(() async {
+      await widget.api.postMultipart(
+        '/mobile/admin/rooms/${widget.roomId}/photos',
+        fileField: 'photo',
+        bytes: file.bytes,
+        filename: file.name,
+      );
+      await _reload();
+    });
+  }
+
+  Future<void> _makeCover(Object? photoId) => _run(() async {
+    await widget.api.put('/mobile/admin/rooms/photos/$photoId/cover');
+    await _reload();
+  });
+
+  Future<void> _removePhoto(Object? photoId) async {
+    final approved = await _confirm(
+      'Quitar foto',
+      'La foto dejará de mostrarse en la residencia y en la habitación.',
+      'Quitar',
+    );
+    if (approved != true) return;
+    await _run(() async {
+      await widget.api.delete('/mobile/admin/rooms/photos/$photoId');
+      await _reload();
+    });
+  }
+
+  Future<void> _removeRoom() async {
+    final approved = await _confirm(
+      'Eliminar habitación',
+      '¿Eliminar la habitación ${_room?['habitacion']} con sus fotos? No se puede deshacer.',
+      'Eliminar',
+    );
+    if (approved != true) return;
+    await _run(() async {
+      await widget.api.delete('/mobile/admin/rooms/item/${widget.roomId}');
+      if (mounted) Navigator.pop(context);
+    });
+  }
+
+  Future<bool?> _confirm(String title, String body, String action) =>
+      showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(action),
+            ),
+          ],
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final room = _room;
+    if (_loading || room == null) {
+      return const SizedBox(height: 240, child: LoadingView());
+    }
+    final occupants = _asInt(room['ocupantes']);
+    final hasOccupants = occupants > 0;
+    final photos = _photosOf(room);
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'PISO ${room['piso']}',
+              style: const TextStyle(
+                color: Color(0xFF4C7A5F),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+              ),
+            ),
+            Text(
+              'Habitación ${room['habitacion']}',
+              style: const TextStyle(
+                color: forestGreen,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              hasOccupants
+                  ? '$occupants reservación(es) activa(s).'
+                  : 'Sin reservaciones activas.',
+              style: const TextStyle(color: mutedGreen, fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+            if (_error != null) ...[InlineError(_error!), const SizedBox(height: 10)],
+            DropdownButtonFormField<String>(
+              initialValue: _type,
+              decoration: const InputDecoration(labelText: 'Tipo'),
+              items: const [
+                DropdownMenuItem(value: 'individual', child: Text('Individual')),
+                DropdownMenuItem(value: 'compartida', child: Text('Compartida')),
+              ],
+              onChanged: hasOccupants
+                  ? null
+                  : (value) => setState(() {
+                      _type = value ?? 'individual';
+                      _capacity.text = _type == 'compartida' ? '2' : '1';
+                    }),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _capacity,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Capacidad (personas)',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _description,
+              maxLines: 2,
+              maxLength: 255,
+              decoration: const InputDecoration(
+                labelText: 'Descripción (opcional)',
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: hasOccupants && _active
+                  ? null
+                  : (value) => setState(() => _active = value),
+              title: const Text('Visible para reservar'),
+            ),
+            if (hasOccupants)
+              const Text(
+                'Con reservaciones activas no se puede cambiar el tipo, desactivar ni eliminar la habitación.',
+                style: TextStyle(color: mutedGreen, fontSize: 11),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              'FOTOS (${photos.length}/8)',
+              style: const TextStyle(
+                color: mutedGreen,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: .8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: [
+                for (var i = 0; i < photos.length; i++)
+                  Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          photos[i]['url'].toString(),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) =>
+                              const ColoredBox(color: Color(0xFFE8EDE6)),
+                        ),
+                      ),
+                      if (i == 0)
+                        const Positioned(
+                          left: 4,
+                          top: 4,
+                          child: _PhotoBadge('PORTADA'),
+                        ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: PopupMenuButton<String>(
+                          enabled: !_busy,
+                          icon: const CircleAvatar(
+                            radius: 13,
+                            backgroundColor: Colors.white,
+                            child: Icon(Icons.more_horiz, size: 16),
+                          ),
+                          onSelected: (value) => value == 'cover'
+                              ? _makeCover(photos[i]['id'])
+                              : _removePhoto(photos[i]['id']),
+                          itemBuilder: (context) => [
+                            if (i != 0)
+                              const PopupMenuItem(
+                                value: 'cover',
+                                child: Text('Usar de portada'),
+                              ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Quitar foto'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                if (photos.length < 8)
+                  OutlinedButton(
+                    onPressed: _busy ? null : _addPhoto,
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_outlined),
+                        SizedBox(height: 4),
+                        Text('Subir', style: TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            if (photos.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Sin fotos: los estudiantes verán una imagen genérica. JPG, PNG o WebP, máx. 5 MB.',
+                  style: TextStyle(color: mutedGreen, fontSize: 11),
+                ),
+              ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: _busy ? null : _save,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(_busy ? 'Guardando...' : 'Guardar cambios'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy || hasOccupants ? null : _removeRoom,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFA93830),
+                minimumSize: const Size.fromHeight(46),
+              ),
+              child: const Text('Eliminar habitación'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoBadge extends StatelessWidget {
+  const _PhotoBadge(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: brandGreen,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 8,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

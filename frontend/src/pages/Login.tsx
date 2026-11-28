@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
-import type { CredentialResponse } from "@react-oauth/google";
+import GoogleAuth from "../components/GoogleAuth";
 import { LoaderCircle } from "lucide-react";
 import AuthShell from "../components/AuthShell";
 import Field from "../components/ui/Field";
@@ -10,7 +9,6 @@ import Notice from "../components/ui/Notice";
 import { useAuth } from "../context/AuthContext";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
 const Login = () => {
   const { login } = useAuth();
@@ -28,7 +26,6 @@ const Login = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const hasError = message?.type === "error";
 
@@ -110,38 +107,6 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSuccess = async ({ credential }: CredentialResponse) => {
-    if (!credential) {
-      showError("Google no devolvió una credencial válida. Intenta de nuevo.");
-      return;
-    }
-
-    setIsGoogleSubmitting(true);
-    clear();
-
-    try {
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ credential }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        showError(data.error || "No se pudo iniciar sesión con Google.");
-        return;
-      }
-
-      await completeLogin();
-    } catch (err) {
-      console.error("Error al iniciar sesión con Google:", err);
-      showError(err instanceof Error ? err.message : "No se pudo conectar con el servidor.");
-    } finally {
-      setIsGoogleSubmitting(false);
-    }
-  };
-
   return (
     <AuthShell>
       <span className="mk-eyebrow">INICIAR SESIÓN</span>
@@ -194,33 +159,7 @@ const Login = () => {
         </button>
       </form>
 
-      <div className="mk-social-divider" aria-hidden="true">
-        <span>O CONTINÚA CON</span>
-      </div>
-      <div className="mk-google-login" aria-busy={isGoogleSubmitting}>
-        {googleClientId ? (
-          <GoogleOAuthProvider clientId={googleClientId}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => showError("No se pudo abrir el inicio de sesión de Google.")}
-              theme="outline"
-              size="large"
-              shape="rectangular"
-              text="continue_with"
-              width={320}
-            />
-          </GoogleOAuthProvider>
-        ) : (
-          <p className="mk-muted" role="status">
-            El inicio de sesión con Google aún no está configurado en este entorno.
-          </p>
-        )}
-      </div>
-      {isGoogleSubmitting && (
-        <p className="mk-google-loading" role="status">
-          <LoaderCircle size={14} className="mk-spin" /> Conectando con Google...
-        </p>
-      )}
+      <GoogleAuth mode="login" onError={showError} onStart={clear} />
 
       <p className="mk-auth-note">
         ¿No tienes cuenta?{" "}

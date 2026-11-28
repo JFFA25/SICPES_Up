@@ -5,6 +5,7 @@ import AuthShell from "../components/AuthShell";
 import Field from "../components/ui/Field";
 import Icon from "../components/ui/Icon";
 import Notice from "../components/ui/Notice";
+import GoogleAuth from "../components/GoogleAuth";
 import { useTimedMessage } from "../hooks/useTimedMessage";
 
 interface FieldErrors {
@@ -230,6 +231,8 @@ const Register = () => {
           )}
         </button>
       </form>
+
+      <GoogleAuth mode="register" onError={showError} onStart={clear} />
 
       <p className="mk-auth-note">
         ¿Ya tienes cuenta?{" "}

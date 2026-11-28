@@ -11,6 +11,8 @@ class RoomDetailScreen extends StatefulWidget {
     required this.room,
     required this.price,
     this.available = true,
+    this.photoUrls = const [],
+    this.description = '',
     super.key,
   });
 
@@ -20,6 +22,10 @@ class RoomDetailScreen extends StatefulWidget {
   final String room;
   final int price;
   final bool available;
+
+  /// Fotos reales (Cloudinary). Si viene vacío se usan las genéricas.
+  final List<String> photoUrls;
+  final String description;
 
   @override
   State<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -35,7 +41,9 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
     'Cerca de tu campus',
   ];
 
-  late final List<String> _photos = widget.type == 'compartida'
+  late final List<String> _photos = widget.photoUrls.isNotEmpty
+      ? widget.photoUrls
+      : widget.type == 'compartida'
       ? const [
           'assets/rooms/room_shared.jpg',
           'assets/rooms/room_hero.jpg',
@@ -82,6 +90,13 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             '$_typeLabel · Piso ${widget.floor}',
             style: const TextStyle(color: mutedGreen),
           ),
+          if (widget.description.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              widget.description,
+              style: const TextStyle(color: mutedGreen, height: 1.35),
+            ),
+          ],
           const SizedBox(height: 14),
 
           // Galería
@@ -89,11 +104,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
               aspectRatio: 16 / 10,
-              child: Image.asset(
-                _photos[_selected],
-                fit: BoxFit.cover,
-                width: double.infinity,
-              ),
+              child: _RoomPhoto(_photos[_selected]),
             ),
           ),
           const SizedBox(height: 8),
@@ -116,11 +127,7 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          _photos[i],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
+                        child: _RoomPhoto(_photos[i]),
                       ),
                     ),
                   ),
@@ -298,5 +305,31 @@ class _RoomDetailScreenState extends State<RoomDetailScreen> {
         ],
       ),
     );
+  }
+}
+
+/// Foto de la habitación: URL de Cloudinary o imagen incluida en la app.
+class _RoomPhoto extends StatelessWidget {
+  const _RoomPhoto(this.source);
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    if (source.startsWith('http')) {
+      return Image.network(
+        source,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : const ColoredBox(color: Color(0xFFE8EDE6)),
+        errorBuilder: (context, error, stack) => const ColoredBox(
+          color: Color(0xFFE8EDE6),
+          child: Center(child: Icon(Icons.image_not_supported_outlined)),
+        ),
+      );
+    }
+    return Image.asset(source, fit: BoxFit.cover, width: double.infinity);
   }
 }

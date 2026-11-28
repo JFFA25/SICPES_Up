@@ -27,6 +27,7 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen> {
   Map<String, dynamic>? _reservation;
   List<Map<String, dynamic>> _payments = [];
   List<Map<String, dynamic>> _notices = [];
+  String? _roomPhoto;
   String? _error;
   bool _loading = true;
 
@@ -34,6 +35,28 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Foto de portada de la habitación asignada (si la hay). No bloquea la carga.
+  Future<void> _loadRoomPhoto() async {
+    final reservation = _reservation;
+    _roomPhoto = null;
+    if (reservation == null || reservation['habitacion'] == null) return;
+    try {
+      final rooms = mapList(await widget.api.get('/mobile/rooms/details'));
+      for (final room in rooms) {
+        if (room['piso'].toString() == reservation['piso'].toString() &&
+            room['habitacion'].toString() ==
+                reservation['habitacion'].toString()) {
+          final photos = room['fotos'];
+          if (photos is List && photos.isNotEmpty && photos.first is Map) {
+            _roomPhoto = (photos.first as Map)['url']?.toString();
+          }
+        }
+      }
+    } on ApiException {
+      // la foto es opcional
+    }
   }
 
   Future<void> _load() async {
@@ -53,6 +76,7 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen> {
         _reservation = null;
       }
       _payments = mapList(values[1]);
+      await _loadRoomPhoto();
       final notices = values[2];
       _notices = mapList(
         notices is Map<String, dynamic> ? notices['items'] : null,
@@ -122,11 +146,27 @@ class _ResidentDashboardScreenState extends State<ResidentDashboardScreen> {
           ),
           const SizedBox(height: 8),
           Card(
+            clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: const EdgeInsets.all(15),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_roomPhoto != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 8,
+                        child: Image.network(
+                          _roomPhoto!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) =>
+                              const ColoredBox(color: Color(0xFFE8EDE6)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     children: [
                       const Expanded(
@@ -242,15 +282,12 @@ class ResidentReservationScreen extends StatefulWidget {
 }
 
 class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
-  List<Map<String, dynamic>> _floors = [];
+  List<Map<String, dynamic>> _rooms = [];
   Map<String, dynamic>? _reservation;
   DateTime _date = DateTime.now();
   String? _floor;
-  String? _room;
-  String _type = '';
-  List<String> _occupied = [];
-  int _individualPrice = 2500;
-  int _sharedPrice = 1800;
+  String _type = ''; // '' = todas
+  Map<String, dynamic>? _selected;
   String? _error;
   bool _loading = true;
   bool _saving = false;
@@ -261,6 +298,8 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
     _load();
   }
 
+  int _n(Object? value) => int.tryParse((value ?? '').toString()) ?? 0;
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -268,32 +307,23 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
     });
     try {
       final result = await Future.wait([
-        widget.api.get('/mobile/rooms'),
+        widget.api.get('/mobile/rooms/details'),
         widget.api.get('/mobile/reservation'),
-        widget.api.get('/mobile/settings'),
       ]);
-      final roomResponse = result[0];
-      _floors = mapList(
-        roomResponse is Map<String, dynamic>
-            ? roomResponse['lista']
-            : roomResponse,
-      );
-      if (result[1] is Map<String, dynamic>) {
-        _reservation = Map<String, dynamic>.from(result[1] as Map);
-      } else {
-        _reservation = null;
-      }
-      final settings = result[2];
-      if (settings is Map<String, dynamic>) {
-        _individualPrice =
-            int.tryParse(settings['precioIndividual'].toString()) ?? 2500;
-        _sharedPrice =
-            int.tryParse(settings['precioCompartida'].toString()) ?? 1800;
-      }
-      if (_floors.isNotEmpty &&
-          !_floors.any((item) => item['piso'].toString() == _floor)) {
-        _floor = _floors.first['piso'].toString();
-        await _loadOccupied();
+      _rooms = mapList(result[0])
+          .where((room) => _n(room['activa']) == 1 || room['activa'] == true)
+          .toList();
+      _reservation = result[1] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(result[1] as Map)
+          : null;
+      final floors = _floors;
+      if (floors.isNotEmpty && !floors.contains(_floor)) _floor = floors.first;
+      final keep = _selected?['id'];
+      _selected = null;
+      if (keep != null) {
+        for (final room in _rooms) {
+          if (room['id'] == keep && _isFree(room)) _selected = room;
+        }
       }
     } on ApiException catch (error) {
       _error = error.message;
@@ -302,36 +332,44 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
     }
   }
 
-  List<String> get _rooms {
-    final floor = _floors.where((item) => item['piso'].toString() == _floor);
-    if (floor.isEmpty) return const [];
-    return (floor.first['habitaciones'] ?? '')
-        .toString()
-        .split(',')
-        .map((room) => room.trim())
-        .where((room) => room.isNotEmpty && !_occupied.contains(room))
-        .toList();
+  List<String> get _floors {
+    final floors = _rooms.map((room) => room['piso'].toString()).toSet().toList()
+      ..sort((a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0));
+    return floors;
   }
+
+  bool _isFree(Map<String, dynamic> room) =>
+      room['disponible'] == true || _n(room['disponible']) == 1;
+
+  List<Map<String, dynamic>> get _floorRooms {
+    final list = _rooms
+        .where(
+          (room) =>
+              room['piso'].toString() == _floor &&
+              (_type.isEmpty || room['tipo'] == _type),
+        )
+        .toList()
+      ..sort(
+        (a, b) => (int.tryParse(a['habitacion'].toString()) ?? 0).compareTo(
+          int.tryParse(b['habitacion'].toString()) ?? 0,
+        ),
+      );
+    return list;
+  }
+
+  List<String> _photoUrls(Map<String, dynamic> room) => [
+    for (final photo in (room['fotos'] is List ? room['fotos'] as List : []))
+      if (photo is Map && photo['url'] != null) photo['url'].toString(),
+  ];
+
+  String _fallbackPhoto(Object? type) => type == 'compartida'
+      ? 'assets/rooms/room_shared.jpg'
+      : 'assets/rooms/room_individual.jpg';
 
   bool get _hasActiveReservation {
     final status = (_reservation?['estado'] ?? '').toString().toLowerCase();
     return _reservation != null &&
         !{'finalizada', 'cancelada', 'rechazada'}.contains(status);
-  }
-
-  Future<void> _loadOccupied() async {
-    if (_floor == null) return;
-    try {
-      final result = await widget.api.get(
-        '/mobile/reservation/occupied?piso=${Uri.encodeQueryComponent(_floor!)}',
-      );
-      _occupied = result is List
-          ? result.map((room) => room.toString()).toList()
-          : [];
-      if (_room != null && _occupied.contains(_room)) _room = null;
-    } on ApiException catch (error) {
-      _error = error.message;
-    }
   }
 
   Future<void> _chooseDate() async {
@@ -350,11 +388,11 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
       _showMessage('Ya tienes una reservación registrada.');
       return;
     }
-    if (_type.isEmpty || _floor == null || _room == null) {
-      _showMessage('Completa todos los datos de la reservación.');
+    final room = _selected;
+    if (room == null) {
+      _showMessage('Elige una habitación para continuar.');
       return;
     }
-    final amount = _type == 'individual' ? _individualPrice : _sharedPrice;
     setState(() {
       _saving = true;
       _error = null;
@@ -364,34 +402,40 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
         '/mobile/reservation',
         body: {
           'fecha_ingreso': DateFormat('yyyy-MM-dd').format(_date),
-          'tipo': _type,
-          'piso': _floor,
-          'habitacion': _room,
-          'monto': amount,
+          'tipo': room['tipo'],
+          'piso': room['piso'].toString(),
+          'habitacion': room['habitacion'].toString(),
+          'monto': _n(room['precio']),
         },
       );
       await _load();
       _showMessage('Reservación enviada para revisión.');
     } on ApiException catch (error) {
       setState(() => _error = error.message);
+      await _load(); // refresca cupos por si alguien tomó la habitación
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _openDetail() async {
-    final price = _type == 'individual' ? _individualPrice : _sharedPrice;
+  Future<void> _openDetail(Map<String, dynamic> room) async {
     final request = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => RoomDetailScreen(
-          type: _type,
-          floor: _floor ?? '',
-          room: _room ?? '',
-          price: price,
+          type: room['tipo'].toString(),
+          floor: room['piso'].toString(),
+          room: room['habitacion'].toString(),
+          price: _n(room['precio']),
+          available: _isFree(room),
+          photoUrls: _photoUrls(room),
+          description: (room['descripcion'] ?? '').toString(),
         ),
       ),
     );
-    if (request == true && mounted) await _submit();
+    if (request == true && mounted) {
+      setState(() => _selected = room);
+      await _submit();
+    }
   }
 
   void _showMessage(String message) {
@@ -401,14 +445,116 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
     }
   }
 
+  Widget _roomImage(Map<String, dynamic> room, {double? size}) {
+    final urls = _photoUrls(room);
+    final child = urls.isNotEmpty
+        ? Image.network(
+            urls.first,
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+            loadingBuilder: (context, image, progress) => progress == null
+                ? image
+                : const ColoredBox(color: Color(0xFFE8EDE6)),
+            errorBuilder: (context, error, stack) =>
+                const ColoredBox(color: Color(0xFFE8EDE6)),
+          )
+        : Image.asset(
+            _fallbackPhoto(room['tipo']),
+            fit: BoxFit.cover,
+            width: size,
+            height: size,
+          );
+    return child;
+  }
+
+  Widget _roomTile(Map<String, dynamic> room) {
+    final free = _isFree(room);
+    final selected = _selected?['id'] == room['id'];
+    final cupos = _n(room['cupos']);
+    final capacidad = _n(room['capacidad']);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: selected ? const Color(0xFFEAF6EC) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: free ? () => setState(() => _selected = room) : null,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? brandGreen : borderColor,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Opacity(
+                  opacity: free ? 1 : .45,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: _roomImage(room, size: 72),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Habitación ${room['habitacion']}',
+                        style: const TextStyle(
+                          color: forestGreen,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${room['tipo'] == 'compartida' ? 'Compartida' : 'Individual'} · ${displayMoney(_n(room['precio']))}/mes',
+                        style: const TextStyle(color: mutedGreen, fontSize: 12),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        free
+                            ? (capacidad > 1
+                                  ? '$cupos de $capacidad lugares libres'
+                                  : 'Disponible')
+                            : 'Ocupada',
+                        style: TextStyle(
+                          color: free
+                              ? const Color(0xFF1E7A45)
+                              : const Color(0xFFA93830),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Ver detalle',
+                  onPressed: () => _openDetail(room),
+                  icon: const Icon(Icons.photo_library_outlined),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const LoadingView();
-    final amount = _type == 'individual'
-        ? _individualPrice
-        : _type == 'compartida'
-        ? _sharedPrice
-        : null;
+    final selected = _selected;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -487,38 +633,6 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
                         'Ingreso · ${DateFormat('dd/MM/yyyy').format(_date)}',
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'TIPO DE HABITACIÓN',
-                      style: TextStyle(
-                        color: mutedGreen,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: .7,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: Text(
-                            'Individual · ${displayMoney(_individualPrice)}',
-                          ),
-                          selected: _type == 'individual',
-                          onSelected: (_) =>
-                              setState(() => _type = 'individual'),
-                        ),
-                        ChoiceChip(
-                          label: Text(
-                            'Compartida · ${displayMoney(_sharedPrice)}',
-                          ),
-                          selected: _type == 'compartida',
-                          onSelected: (_) =>
-                              setState(() => _type = 'compartida'),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: _floor,
@@ -526,62 +640,109 @@ class _ResidentReservationScreenState extends State<ResidentReservationScreen> {
                       items: [
                         for (final floor in _floors)
                           DropdownMenuItem(
-                            value: floor['piso'].toString(),
-                            child: Text('Piso ${floor['piso']}'),
+                            value: floor,
+                            child: Text('Piso $floor'),
                           ),
                       ],
-                      onChanged: (value) async {
-                        setState(() {
-                          _floor = value;
-                          _room = null;
-                        });
-                        await _loadOccupied();
-                        if (mounted) setState(() {});
-                      },
+                      onChanged: (value) => setState(() {
+                        _floor = value;
+                        _selected = null;
+                      }),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final option in const [
+                          ('', 'Todas'),
+                          ('individual', 'Individuales'),
+                          ('compartida', 'Compartidas'),
+                        ])
+                          ChoiceChip(
+                            label: Text(option.$2),
+                            selected: _type == option.$1,
+                            onSelected: (_) => setState(() {
+                              _type = option.$1;
+                              if (_selected != null &&
+                                  _type.isNotEmpty &&
+                                  _selected!['tipo'] != _type) {
+                                _selected = null;
+                              }
+                            }),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _rooms.contains(_room) ? _room : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Habitación',
-                      ),
-                      items: [
-                        for (final room in _rooms)
-                          DropdownMenuItem(
-                            value: room,
-                            child: Text('Habitación $room'),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() => _room = value),
-                    ),
-                    if (_floor != null && _rooms.isEmpty)
+                    if (_floorRooms.isEmpty)
                       const Padding(
-                        padding: EdgeInsets.only(top: 8),
+                        padding: EdgeInsets.symmetric(vertical: 12),
                         child: Text(
-                          'No hay habitaciones disponibles en este piso.',
+                          'No hay habitaciones de este tipo en el piso.',
                           style: TextStyle(color: mutedGreen, fontSize: 12),
                         ),
-                      ),
-                    const SizedBox(height: 16),
-                    if (amount != null)
-                      Text(
-                        'Renta mensual · ${displayMoney(amount)}',
-                        style: const TextStyle(
-                          color: forestGreen,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    if (_type.isNotEmpty && _room != null) ...[
-                      OutlinedButton.icon(
-                        onPressed: _openDetail,
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('Ver detalle de la habitación'),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                      )
+                    else
+                      for (final room in _floorRooms) _roomTile(room),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut,
+                      child: selected == null
+                          ? const SizedBox(width: double.infinity)
+                          : Container(
+                              margin: const EdgeInsets.only(top: 4, bottom: 4),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFCFBF6),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: borderColor),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: AspectRatio(
+                                      aspectRatio: 16 / 9,
+                                      child: _roomImage(selected),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'Habitación ${selected['habitacion']} · Piso ${selected['piso']}',
+                                    style: const TextStyle(
+                                      color: forestGreen,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if ((selected['descripcion'] ?? '')
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        selected['descripcion'].toString(),
+                                        style: const TextStyle(
+                                          color: mutedGreen,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Renta mensual · ${displayMoney(_n(selected['precio']))}',
+                                    style: const TextStyle(
+                                      color: forestGreen,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 10),
                     FilledButton(
-                      onPressed: _saving ? null : _submit,
+                      onPressed: _saving || selected == null ? null : _submit,
                       child: Text(
                         _saving ? 'Enviando...' : 'Solicitar reservación',
                       ),
