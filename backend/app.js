@@ -68,6 +68,9 @@ app.use("/api/payment", paymentRoutes);
 const roomRoutes = require("./src/routes/room.routes");
 app.use("/api/rooms", roomRoutes);
 
+const residenceRoutes = require("./src/routes/residence.routes");
+app.use("/api/residence", residenceRoutes);
+
 const adminRoutes = require("./src/routes/admin.routes");
 app.use("/api/admin", adminRoutes);
 

@@ -41,6 +41,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   google_sign_in: 6.2.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -58,8 +59,8 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: assets/brand/sicpes_launcher.png
-  adaptive_icon_background: assets/brand/sicpes_launcher_background.png
-  adaptive_icon_foreground: assets/brand/sicpes_launcher_foreground.png
+  adaptive_icon_background: "#FDFBF7"
+  adaptive_icon_foreground: assets/brand/sicpes_launcher.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

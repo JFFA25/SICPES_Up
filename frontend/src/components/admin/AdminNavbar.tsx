@@ -7,12 +7,13 @@ import { disablePush } from "../../utils/push";
 import "../../styles/sicpes-ui.css";
 import "../../styles/admin.css";
 
-type AdminSection = "reservations" | "payments" | "floors" | "reports" | "settings";
+type AdminSection = "reservations" | "payments" | "floors" | "residence" | "reports" | "settings";
 
-const MAIN_LINKS: { key: AdminSection; to: string; label: string; icon: "calendar" | "card" | "building" | "settings" }[] = [
+const MAIN_LINKS: { key: AdminSection; to: string; label: string; icon: "calendar" | "card" | "building" | "settings" | "image" }[] = [
   { key: "reservations", to: "/admin/reservations", label: "Reservaciones", icon: "calendar" },
   { key: "payments", to: "/admin/payments", label: "Pagos", icon: "card" },
   { key: "floors", to: "/admin/floors", label: "Pisos", icon: "building" },
+  { key: "residence", to: "/admin/residence", label: "Residencia", icon: "image" },
   { key: "settings", to: "/admin/settings", label: "Configuración", icon: "settings" },
 ];
 

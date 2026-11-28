@@ -13,8 +13,8 @@ const _accentLight = Color(0xFFB9E3C6);
 enum IntroStatus { restoring, noSession, hasSession, error }
 
 /// Splash de SICPES: fondo degradado verde, ícono de la app flotando,
-/// nombre, lema y barra de carga. Si ya hay sesión guardada continúa sola;
-/// si no, muestra el botón "Continuar".
+/// nombre, lema y barra de carga. Al terminar pasa sola: a tu cuenta si hay
+/// sesión guardada, o a la pantalla de inicio si no.
 class IntroSplash extends StatefulWidget {
   const IntroSplash({
     required this.status,
@@ -71,7 +71,10 @@ class _IntroSplashState extends State<IntroSplash>
   }
 
   void _maybeAutoContinue() {
-    if (_autoContinued || !_ready || widget.status != IntroStatus.hasSession) {
+    if (_autoContinued ||
+        !_ready ||
+        (widget.status != IntroStatus.hasSession &&
+            widget.status != IntroStatus.noSession)) {
       return;
     }
     _autoContinued = true;
@@ -225,12 +228,6 @@ class _IntroSplashState extends State<IntroSplash>
           _CreamButton(label: 'Intentar de nuevo', onPressed: widget.onRetry),
         ],
       );
-    } else if (widget.status == IntroStatus.noSession && _ready) {
-      content = _CreamButton(
-        key: const ValueKey('continue'),
-        label: 'Continuar',
-        onPressed: widget.onContinue,
-      );
     } else {
       content = Column(
         key: const ValueKey('loading'),
@@ -266,6 +263,8 @@ class _IntroSplashState extends State<IntroSplash>
           Text(
             widget.status == IntroStatus.hasSession
                 ? 'Entrando a tu cuenta...'
+                : widget.status == IntroStatus.noSession
+                ? 'Todo listo'
                 : 'Conectando con SICPES...',
             style: const TextStyle(color: _creamMuted, fontSize: 12),
           ),

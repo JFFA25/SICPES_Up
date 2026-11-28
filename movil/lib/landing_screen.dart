@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_client.dart';
+import 'contact_content.dart';
 import 'sicpes_widgets.dart';
 
 const _cream = Color(0xFFFDFBF7);
@@ -548,56 +549,7 @@ class _ContactPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _SectionHeading(
-            eyebrow: 'CONTACTO',
-            title: 'Estamos para ayudarte',
-            subtitle: 'Escríbenos si tienes preguntas sobre la residencia o tu reservación.',
-          ),
-          const SizedBox(height: 18),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.mail_outline, color: brandGreen),
-                      SizedBox(width: 10),
-                      Text(
-                        'Correo de soporte',
-                        style: TextStyle(
-                          color: forestGreen,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 34, top: 6),
-                    child: SelectableText(
-                      supportEmail,
-                      style: const TextStyle(color: mutedGreen),
-                    ),
-                  ),
-                  const Divider(height: 28),
-                  const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.location_on_outlined, color: brandGreen),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Universidad Tecnológica de Xicotepec de Juárez',
-                          style: TextStyle(color: forestGreen, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ContactContent(supportEmail: supportEmail),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: onRegister,

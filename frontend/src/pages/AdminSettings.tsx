@@ -102,9 +102,12 @@ const AdminSettings = () => {
           <div>
             <span className="admin-eyebrow">HABITACIONES Y FOTOS</span>
             <h2 style={{ margin: "4px 0" }}>Fotos, tipo y capacidad de cada habitación</h2>
-            <p style={{ margin: 0 }}>Se editan por habitación en Pisos. Los cambios se reflejan al instante en "La residencia" y al reservar.</p>
+            <p style={{ margin: 0 }}>Las fotos de cada habitación se editan en Pisos; las de la galería de "La residencia", en su propio apartado.</p>
           </div>
-          <Link to="/admin/floors" className="admin-btn"><Icon name="building" size={14} /> Ir a Pisos</Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link to="/admin/floors" className="admin-btn"><Icon name="building" size={14} /> Ir a Pisos</Link>
+            <Link to="/admin/residence" className="admin-btn ghost"><Icon name="image" size={14} /> Fotos de la residencia</Link>
+          </div>
         </section>
 
         {loading ? (

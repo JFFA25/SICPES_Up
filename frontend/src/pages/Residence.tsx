@@ -17,22 +17,10 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import buildingImg from "../assets/images/building.jpg";
-import towerImg from "../assets/images/departament.webp";
-import individualImg from "../assets/images/room_individual.jpg";
-import sharedImg from "../assets/images/room_shared.jpg";
 import { fallbackPhoto, photosOf, useRoomDetails } from "../hooks/useRoomDetails";
+import { useResidencePhotos } from "../hooks/useResidencePhotos";
+import { DEFAULT_GALLERY } from "../data/residenceDefaults";
 import "../styles/sicpes-ui.css";
-
-// ── Galería ──────────────────────────────────────────────────────────────────
-// Las fotos vienen de las habitaciones (las sube el administrador a Cloudinary).
-// Mientras no haya fotos cargadas se muestran estas de respaldo.
-const FALLBACK_GALLERY = [
-    { src: individualImg, label: "Habitación individual" },
-    { src: sharedImg, label: "Habitación compartida" },
-    { src: buildingImg, label: "Fachada" },
-    { src: towerImg, label: "Edificio de la residencia" },
-];
 
 const SERVICES = [
     { icon: Wifi, title: "Internet Wi-Fi", text: "Conexión para estudiar y trabajar." },
@@ -55,6 +43,7 @@ const formatMoney = (value: number) =>
 const Residence = () => {
     const [selected, setSelected] = useState(0);
     const { rooms, loading, error } = useRoomDetails();
+    const { photos: residencePhotos } = useResidencePhotos();
     const loadError = Boolean(error);
 
     useEffect(() => {
@@ -69,22 +58,13 @@ const Residence = () => {
     }, [rooms]);
     const totalRooms = rooms.length;
 
-    // Galería: todas las fotos reales (sin repetir); si no hay, las de respaldo.
+    // Galería: las fotos que sube el administrador; si aún no hay, las predeterminadas.
     const gallery = useMemo(() => {
-        const seen = new Set<string>();
-        const photos: { src: string; label: string }[] = [];
-        rooms.forEach((room) =>
-            room.fotos.forEach((photo) => {
-                if (seen.has(photo.url) || photos.length >= 12) return;
-                seen.add(photo.url);
-                photos.push({
-                    src: photo.url,
-                    label: `Habitación ${room.habitacion} · ${room.tipo === "compartida" ? "Compartida" : "Individual"}`,
-                });
-            })
-        );
-        return photos.length ? photos : FALLBACK_GALLERY;
-    }, [rooms]);
+        if (residencePhotos.length) {
+            return residencePhotos.map((photo) => ({ src: photo.url, label: photo.descripcion || "La residencia SICPES" }));
+        }
+        return DEFAULT_GALLERY;
+    }, [residencePhotos]);
 
     useEffect(() => {
         if (selected >= gallery.length) setSelected(0);

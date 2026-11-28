@@ -290,3 +290,5 @@
 .sicpes-admin .admin-room-options { max-height: 230px; overflow-y: auto; padding-right: 2px; overscroll-behavior: contain; }
 .sicpes-admin .admin-room-options .admin-room-option { justify-content: flex-start; }
 .sicpes-admin .admin-modal-backdrop { padding-top: calc(76px / var(--z, 1) + 10px); padding-bottom: 10px; }
+.sicpes-admin .admin-photo-caption { width: 100%; margin-top: 6px; padding: 6px 8px; border: 1px solid #E5E0D3; border-radius: 8px; font-size: 9px; background: #fff; }
+.sicpes-admin .admin-photo { display: flex; flex-direction: column; }

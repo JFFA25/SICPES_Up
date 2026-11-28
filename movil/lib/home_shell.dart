@@ -27,6 +27,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell>
     with SingleTickerProviderStateMixin {
   int _sectionValue = 0;
+  String? _photoUrl;
   late final AnimationController _transition = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 320),
@@ -38,6 +39,28 @@ class _HomeShellState extends State<HomeShell>
     if (value == _sectionValue) return;
     _sectionValue = value;
     _transition.forward(from: 0);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final photo = (widget.user['foto_perfil_url'] ?? '').toString();
+    if (photo.startsWith('http')) _photoUrl = photo;
+    _loadPhoto();
+  }
+
+  /// La sesión puede no traer la foto; la pedimos al perfil sin bloquear.
+  Future<void> _loadPhoto() async {
+    try {
+      final result = await widget.api.get('/mobile/profile');
+      final user = result is Map ? result['user'] : null;
+      final photo = user is Map ? (user['foto_perfil_url'] ?? '').toString() : '';
+      if (mounted && photo.startsWith('http') && photo != _photoUrl) {
+        setState(() => _photoUrl = photo);
+      }
+    } on ApiException {
+      // se quedan las iniciales
+    }
   }
 
   @override
@@ -65,6 +88,7 @@ class _HomeShellState extends State<HomeShell>
             user: widget.user,
             onOpenSection: (index) => setState(() => _section = index),
             onLogout: widget.onLogout,
+            onPhotoChanged: (url) => setState(() => _photoUrl = url),
           ),
         ];
 
@@ -99,7 +123,15 @@ class _HomeShellState extends State<HomeShell>
             child: CircleAvatar(
               radius: 16,
               backgroundColor: const Color(0xFFDDF0E2),
-              child: Text(
+              backgroundImage: _photoUrl == null
+                  ? null
+                  : NetworkImage(_photoUrl!),
+              onBackgroundImageError: _photoUrl == null
+                  ? null
+                  : (_, __) => setState(() => _photoUrl = null),
+              child: _photoUrl != null
+                  ? null
+                  : Text(
                 _initials(displayName),
                 style: const TextStyle(
                   color: _forest,

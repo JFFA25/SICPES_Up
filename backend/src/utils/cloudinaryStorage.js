@@ -106,9 +106,39 @@ const uploadRoomPhoto = (buffer, roomId) => {
   });
 };
 
+const getResidenceFolder = () => {
+  const environment = process.env.NODE_ENV === "production" ? "production" : "development";
+  return `sicpes/${environment}/residence`;
+};
+
+// Foto de la galería de "La residencia" (ya optimizada).
+const uploadResidencePhoto = (buffer) => {
+  configure();
+
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: getResidenceFolder(),
+        public_id: `residence-${Date.now()}`,
+        resource_type: "image",
+        format: "webp",
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result?.secure_url || !result?.public_id) {
+          return reject(new Error("Cloudinary no devolvió una URL segura."));
+        }
+        resolve({ url: result.secure_url, publicId: result.public_id });
+      }
+    );
+
+    stream.end(buffer);
+  });
+};
+
 const deleteImage = async (publicId) => {
   configure();
   return cloudinary.uploader.destroy(publicId, { resource_type: "image", invalidate: true });
 };
 
-module.exports = { isConfigured, uploadAvatar, uploadReceipt, uploadRoomPhoto, deleteImage };
+module.exports = { isConfigured, uploadAvatar, uploadReceipt, uploadRoomPhoto, uploadResidencePhoto, deleteImage };

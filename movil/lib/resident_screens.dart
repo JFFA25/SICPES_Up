@@ -6,6 +6,7 @@ import 'file_picker_helper.dart';
 import 'logout_flow.dart';
 import 'request_status_screen.dart';
 import 'room_detail_screen.dart';
+import 'contact_content.dart';
 import 'sicpes_widgets.dart';
 
 class ResidentDashboardScreen extends StatefulWidget {
@@ -1205,11 +1206,15 @@ class ResidentAccountScreen extends StatefulWidget {
     required this.user,
     required this.onOpenSection,
     required this.onLogout,
+    this.onPhotoChanged,
     super.key,
   });
 
   final ApiClient api;
   final Map<String, dynamic> user;
+
+  /// Avisa a la barra superior cuando cambia la foto de perfil.
+  final ValueChanged<String>? onPhotoChanged;
 
   /// Cambia la pestaña del menú inferior (1 = Reservar, 2 = Pagos).
   final ValueChanged<int> onOpenSection;
@@ -1260,6 +1265,8 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
       );
       if (result is Map<String, dynamic> && result['user'] is Map) {
         _profile = Map<String, dynamic>.from(result['user'] as Map);
+        final url = (_profile?['foto_perfil_url'] ?? '').toString();
+        if (url.startsWith('http')) widget.onPhotoChanged?.call(url);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1307,21 +1314,9 @@ class _ResidentAccountScreenState extends State<ResidentAccountScreen> {
   }
 
   void _openSupport() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Soporte SICPES'),
-        content: Text(
-          _supportEmail.isEmpty
-              ? 'Contacta al equipo administrativo para recibir ayuda.'
-              : 'Escribe al equipo administrativo: $_supportEmail',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ContactScreen(supportEmail: _supportEmail),
       ),
     );
   }
