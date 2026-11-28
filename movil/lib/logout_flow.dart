@@ -165,7 +165,7 @@ class _LogoutOverlayState extends State<_LogoutOverlay>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const ConstrainedBox(
+                      ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: 260),
                         child: Text(
                           'Limpiando datos locales de forma segura',
